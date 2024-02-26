@@ -160,8 +160,8 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
                     vert_remap[v.index] = len(export_vertices)
                     normal_remap[v.index] = len(export_normals)
                     
-                    export_vertices.append(utils.translate_vertex(v.co))
-                    export_normals.append(utils.translate_vertex(v.normal))
+                    export_vertices.append(utils.translate_vector(v.co))
+                    export_normals.append(utils.translate_vector(v.normal))
                     
                     grp_vert_count += 1
                     grp_normal_count += 1
@@ -174,8 +174,8 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
         for v in me.vertices:
             vert_remap[v.index] = len(export_vertices)
             normal_remap[v.index] = len(export_normals)
-            export_vertices.append(utils.translate_vertex(v.co))
-            export_normals.append(utils.translate_vertex(v.normal))
+            export_vertices.append(utils.translate_vector(v.co))
+            export_normals.append(utils.translate_vector(v.normal))
         mtxn.append(len(export_normals))
         mtxv.append(len(export_vertices))
         

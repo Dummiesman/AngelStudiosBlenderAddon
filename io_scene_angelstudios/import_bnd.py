@@ -1,6 +1,7 @@
 import bpy, bmesh
 import time
 from .file_parser import FileParser
+from . import utils as utils
 
 ######################################################
 # HELPER FUNCTIONS
@@ -18,7 +19,11 @@ def get_material_color(name):
                       'deepwater': (0.15, 0.408, 0.459, 1.0),
                     }
   
-  return material_colors[name] if name in material_colors else material_colors["default"]
+  name_l = name.lower()
+  for key in material_colors:
+     if key in name_l:
+        return material_colors[key]
+  return material_colors["default"]
 
 
 def create_material(name):
@@ -53,9 +58,6 @@ def create_material(name):
   bsdf.inputs["Color"].default_value = material_color
   
   return mtl
-  
-def translate_vertex(vertex):
-    return (-vertex[0], vertex[2], vertex[1])
   
 ######################################################
 # IMPORT MAIN FILES
@@ -94,7 +96,7 @@ def read_bnd_file(file):
         bpy.ops.object.mode_set(mode='EDIT', toggle=False)
         
         while parser.skip_to("v", 16):
-            bm.verts.new((translate_vertex(parser.read_float_array())))
+            bm.verts.new((utils.translate_vector(parser.read_float_array())))
             bm.verts.ensure_lookup_table()
             
         while parser.skip_to("mtl", 32):

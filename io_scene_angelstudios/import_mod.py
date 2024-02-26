@@ -191,7 +191,7 @@ def import_mod_object(filepath):
             
             # make material
             material = bpy.data.materials.new(mod_material.name)
-            mat_wrap =node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=False) 
+            mat_wrap = node_shader_utils.PrincipledBSDFWrapper(material, is_readonly=False) 
             material.use_nodes = True
             mod_material.material = material
             
