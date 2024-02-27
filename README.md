@@ -8,7 +8,7 @@ A Blender add-on that handles several formats used in Angel Studios / Rockstar S
 |DLP        | Yes               | None            |  No texture import, only very basic material support       |
 |MOD/XMOD        |  v1.06 through v1.10              |  v1.09 and v1.10              |       |
 |BND        |  v1.01 through v1.10              |  v1.01 and v1.10              |  Only geometry type bounds are supported. There is currently no handling for box/sphere/hotdog/composite/grid     |
-|SKEL        |  v1.0 and v1.01\*              |  v1.09 and v1.10              | v1.01 is only coincidentally supported. Animation channel information is not retained.      |
+|SKEL        |  v1.0 and v1.01\*              |  v1.0              | v1.01 is only coincidentally supported. Animation channel information is not retained.      |
 
 ## Installation
 1. Grab the latest `io_scene_angelstudios.zip` here https://github.com/Dummiesman/AngelStudiosBlenderAddon/releases
