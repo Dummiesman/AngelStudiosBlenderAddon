@@ -39,7 +39,7 @@ Click OK
 - The shininess variable in XMOD is controlled via the `Roughness` slider in a `Principled BSDF` material. Any other material shader is not supported.
 - As long as a texture is assigned, it'll be exported into the XMOD. If a texture is not found on import, a placeholder texture is generated, and you can still export without losing the texture.
 
-- ## Dealing with MTX Files
+## Dealing with MTX Files
 MTX files are automatically imported when using "Import MOD/XMOD Scene", and automatically exported when using "ExportMOD/XMOD Scene"
 **The `:m` suffix is not recognized by the addon, adding it may break exports. It is not neccessary to use it anymore.**
 
