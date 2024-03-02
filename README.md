@@ -47,5 +47,4 @@ MTX files are automatically imported when using "Import MOD/XMOD Scene", and aut
 - First, import a .skel file
 - Then import the associated .xmod file 
 - On the newly imported model, add an Armature modifier and  bind it to the armature imported from the skel file
-**In release 0.0.1/0.0.2 the vertices are not correctly assigned to bones, so it's normal to see them spike/move incorrectly. This is known and I'll be looking into it**
 **Animation import/export is not yet supported**
