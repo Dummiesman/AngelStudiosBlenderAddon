@@ -3,7 +3,6 @@ import time, os
 
 from . import utils as utils
 from .file_parser import FileParser
-from .packet_parser import PacketParser
 from bpy_extras import node_shader_utils
 
 class ModMaterialInfo:
@@ -27,6 +26,14 @@ class ModAdjunct:
 ######################################################
 # HELPERS
 ######################################################
+def primitive_to_tri_indices(tokens):
+    if tokens[0] == "tri":
+        return [int(index) for index in tokens[1:]]
+    elif tokens[0] == "stp":
+        return utils.triangle_strip_to_list([int(index) for index in tokens[2:]], True)
+    elif tokens[0] == "str":
+        return utils.triangle_strip_to_list([int(index) for index in tokens[2:]], False)
+    
 def get_bone_name_map():
     """Return a map of [bone_id] = (name, offset) for offsetting imported MOD"""
     am = None
@@ -81,7 +88,6 @@ def import_mod_object(filepath):
         
         # get bone map
         bone_map = get_bone_name_map()
-        vert_to_bone_map = {}
         vert_bone_assignment_map = None
         have_skeleton = bone_map is not None
         
@@ -91,9 +97,6 @@ def import_mod_object(filepath):
             for x in range(len(bone_map)):
                 bone_name, bone_offset = bone_map[x]
                 ob.vertex_groups.new(name=bone_name)
-        
-        # vert counter
-        vert_id = 0
         
         # header info
         material_count = 0
@@ -108,9 +111,6 @@ def import_mod_object(filepath):
         materials = []
         
         adjuncts = []
-        
-        mtxv = []
-        mtxn = []
         
         version = None
         if parser.skip_to("version:"):
@@ -211,34 +211,28 @@ def import_mod_object(filepath):
         # get matrices, then go back to where we were
         before_mtx_offset = parser.tell()
         
+        mtxv = []
+        mtxn = []
+
         if parser.skip_to("mtxv"):
             mtxv = parser.read_int_array()
         if parser.skip_to("mtxn"):
             mtxn = parser.read_int_array()
+
+        vertex_bone_indices = []
+        for x in range(len(mtxv)):
+            vertex_bone_indices.extend([x] * mtxv[x])
             
         parser.seek(before_mtx_offset)
         
         # offset vertices if we have a skeleton
         if have_skeleton:
-            index_offset = 0
-            for bone_id, vertex_count in enumerate(mtxv):
-                bone_name, bone_offset = bone_map[bone_id]
-                for x in range(index_offset, index_offset + vertex_count):
-                    vertex = vertices[x]
-                    vertices[x] = [vertex[0] + bone_offset[0],
-                                   vertex[1] + bone_offset[1],
-                                   vertex[2] + bone_offset[2]]
+            for vertex_index, vertex in enumerate(vertices):
+                bone_name, bone_offset = bone_map[vertex_bone_indices[vertex_index]]
+                vertices[vertex_index] = [vertex[0] + bone_offset[0],
+                                          vertex[1] + bone_offset[1],
+                                          vertex[2] + bone_offset[2]]
 
-                index_offset += vertex_count
-                
-        # get bone assignments if we have a skeleton
-        if have_skeleton:
-            index_offset = 0
-            for bone_id, vertex_count in enumerate(mtxv):
-                for x in range(index_offset, index_offset + vertex_count):
-                    vert_to_bone_map[x] = bone_id
-                index_offset += vertex_count
-                
         # read geometry connection data
         vertex_remap_table = {}
         remapped_verts = []
@@ -246,7 +240,7 @@ def import_mod_object(filepath):
         def get_vert_for_adjunct(adjunct):
             vertex_coord = vertices[adjunct.vertex_index]
             normal_coord = normals[adjunct.normal_index]
-            vertex_hash = str(vertex_coord) + "|" + str(normal_coord) + "|" + str(adjunct.matrix_index)
+            vertex_hash = str(vertex_coord) + "|" + str(normal_coord)
             
             bmvert = None
             if vertex_hash in vertex_remap_table:
@@ -256,6 +250,11 @@ def import_mod_object(filepath):
                 bmvert.normal = normal_coord
                 vertex_remap_table[vertex_hash] = len(remapped_verts)
                 remapped_verts.append(bmvert)
+                bm.verts.index_update()
+
+            if have_skeleton:
+                vert_bone_assignment_map[vertex_bone_indices[adjunct.vertex_index]].append(bmvert.index)
+            
             return bmvert
                 
         def add_tris(tri_indices):
@@ -280,22 +279,15 @@ def import_mod_object(filepath):
                 nidx = adj_data[1]
                 cidx = adj_data[2]
                 u1idx = adj_data[3]
-                u2idx = adj_data[4]
-                
-                if have_skeleton:
-                    vert_bone_assignment_map[vert_to_bone_map[vidx]].append(vert_id)
-                    vert_id += 1
-                    
+                u2idx = adj_data[4]                    
                 adjuncts.append(ModAdjunct(vidx, nidx, cidx, u1idx, u2idx))
                 
             # parse primitives
             for material_index, mod_material in enumerate(materials):
-                packet_parser = PacketParser()
                 for x in range(mod_material.primitive_count):
                     if parser.skip_to(PRIM_TYPES):
-                        tok = parser.read_tokens()
-                        tri_indices = packet_parser.parse_primitive(tok[0], tok[1:])
-                        add_tris(tri_indices)
+                        tokens = parser.read_tokens()
+                        add_tris(primitive_to_tri_indices(tokens))
                     else:
                         raise Exception(f"Ran out of primitives building geometry for material {mod_material.name}")
         else:
@@ -314,21 +306,14 @@ def import_mod_object(filepath):
                             parser.skip_to("adj")
                             for y in range(num_adjuncts):
                                 vidx, nidx, cidx, u1idx, u2idx, mtxidx = parser.read_int_array()
-                                if have_skeleton:
-                                    vert_bone_assignment_map[vert_to_bone_map[vidx]].append(vert_id)
-                                    vert_id += 1
-                                
                                 adjuncts.append(ModAdjunct(vidx, nidx, cidx, u1idx, u2idx, mtxidx))
                                 
                         # parse primitives
-                        tot_indices = 0
-                        packet_parser = PacketParser()
                         if num_primitives > 0:
                             parser.skip_to(PRIM_TYPES)
                             for y in range(num_primitives):
-                                tok = parser.read_tokens()
-                                tri_indices = packet_parser.parse_primitive(tok[0], tok[1:])
-                                add_tris(tri_indices)
+                                tokens = parser.read_tokens()
+                                add_tris(primitive_to_tri_indices(tokens))
                     else:
                         raise Exception(f"Ran out of packets building geometry for material {mod_material.name}")
         

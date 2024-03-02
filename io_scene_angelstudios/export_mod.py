@@ -69,7 +69,7 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
     export_ob = ob.evaluated_get(bpy.context.evaluated_depsgraph_get()) if apply_modifiers else ob.data
     me = export_ob.to_mesh()
 
-    uv_layer = me.uv_layers.active.data
+    uv_layer = me.uv_layers.active.data if me.uv_layers.active is not None else None
     vc_layer = me.vertex_colors.active
     
     me.calc_loop_triangles()
@@ -98,108 +98,36 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
     mtxv = []
     mtxn = []
     
-    vert_remap = {}
-    normal_remap = {}
+    vert_remap = {} # coordinate -> file index
+    normal_remap = {} # coordinate -> file index
     vert_bone_map = {}
-    uv_remap = {}
-    color_remap = {}
+    uv_remap = {} # coordinate -> file index
+    color_remap = {} # coordinate -> file index
     loops_to_polygons = {}
     material_loops = [[] for x in range(material_count)]
     
-    # we first need to sort vertices by what bone they're assigned to
-    # then export geometry in order of material
-    # finally end off with mtxv [bone_adjunct_counts list] mtxn [bone_vert_counts list]
+    print("gather bones...")
+    bone_count = len(am.bones) if am is not None else 1
+    bones = [None for x in range(bone_count)]
+    bone_name_to_index = {}
+    bone_names = set()
+
     if am is not None:
-        print("make bonemap...")
-        bone_id_map = {} # index: name
         for bone in am.bones:
-            if 'bone_id' in bone:
-                bone_id_map[bone['bone_id']] = bone.name
-        print(f"bonemap size is {len(bone_id_map)}")
-        
-        
-        print("map verts...")
-        
-        unmapped_verts = []
-        for v in me.vertices:
-            num_groups = 0
-            for g in v.groups:
-                if g.weight > 0.5:
-                    num_groups += 1
-                    
-            if num_groups == 0:
-                print("WARNING: Found a vertex without any group assignments. It will be selected and mapped to the first bone (typically root).")
-                v.select = True
-                unmapped_verts.append(v)
+            bone_names.add(bone.name)
+        if len([bone for bone in am.bones if 'bone_id' in bone]) == bone_count:
+            print("    ordering bones by their bone_id defined order")
+            # use bone_id field to assign bones list
+            for bone in am.bones:
+                bone_name_to_index[bone.name] = bone['bone_id']
+                bones[bone['bone_id']] = bone
+        else:
+            print("    ordering bones by their armature order")
+            # use bone index to assign bones list
+            for bone_index, bone in enumerate(am.bones):
+                bone_name_to_index[bone.name] = bone_index
+                bones[bone_index] = bone
                 
-                        
-        for bone_idx in range(len(bone_id_map)):
-            grp_name = bone_id_map[bone_idx]
-            if not grp_name in ob.vertex_groups:
-                print(f"\tskipping group {grp_name}: no vertex group")
-                mtxn.append(0)
-                mtxv.append(0)
-                continue
-            
-            grp_index = ob.vertex_groups[grp_name].index
-            grp_vert_count = 0
-            grp_normal_count = 0
-            
-            print(f"\tgroup {grp_name}:{grp_index}")
-            
-            grp_verts = get_verts_in_group(me, grp_index)
-            if bone_idx == 0:
-                grp_verts += unmapped_verts
-            
-            for v in grp_verts:
-                if v.index in vert_remap:
-                    existing_bone_name = am.bones[vert_bone_map[v.index]].name
-                    print(f"WARNING: Skipping vertex group mapping, a vert from {grp_name} is already mapped to {existing_bone_name}")
-                else:
-                    vert_bone_map[v.index] = bone_idx
-                    vert_remap[v.index] = len(export_vertices)
-                    normal_remap[v.index] = len(export_normals)
-                    
-                    export_vertices.append(utils.translate_vector(v.co))
-                    export_normals.append(utils.translate_vector(v.normal))
-                    
-                    grp_vert_count += 1
-                    grp_normal_count += 1
-                            
-            
-            print(f"\t\t{grp_vert_count} verts, {grp_normal_count} normals")
-            mtxn.append(grp_normal_count)
-            mtxv.append(grp_vert_count)
-    else:
-        for v in me.vertices:
-            vert_remap[v.index] = len(export_vertices)
-            normal_remap[v.index] = len(export_normals)
-            export_vertices.append(utils.translate_vector(v.co))
-            export_normals.append(utils.translate_vector(v.normal))
-        mtxn.append(len(export_normals))
-        mtxv.append(len(export_vertices))
-        
-    
-    # localize vertices if we have an armature
-    if am is not None:
-        print("localize vertices...")
-        
-        localize_offset = 0
-        for x in range(len(bone_id_map)):
-            bone_name = bone_id_map[x]
-            bone = am.bones[bone_name]
-            vertex_count = mtxv[x]
-            
-            bone_pos = get_bone_pos(bone)
-            
-            for y in range(localize_offset, localize_offset + vertex_count):
-                vertex = export_vertices[y]
-                export_vertices[y] = [vertex[0] - bone_pos[0],
-                                      vertex[1] - bone_pos[1],
-                                      vertex[2] - bone_pos[2]]
-            localize_offset += vertex_count
-        
-    # do texture coordinates, colors, and map loops
     print("map loops...")
     for polygon in me.polygons:
         for loop_index in polygon.loop_indices:
@@ -218,7 +146,68 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
         if not color in color_remap:
             color_remap[color] = len(export_colors)
             export_colors.append(color)
-    
+
+    # we first need to sort vertices by what bone they're assigned to
+    # then export geometry in order of material
+    # finally end off with mtxv [bone_adjunct_counts list] mtxn [bone_vert_counts list]
+    vert_bone_assignment_map = [[] for x in range(bone_count)]
+    for v in me.vertices:
+        resident_groups = set()
+        for gv in v.groups:
+            group_name = ob.vertex_groups[gv.group].name
+            if group_name in bone_names and gv.weight > 0.5:
+                resident_groups.add(bone_name_to_index[group_name])
+        if len(resident_groups) == 0:
+            resident_groups.add(0) # add to root bone
+        if len(resident_groups) > 1:
+            print("UH OH: A vertex is mapped to multiple groups. This is unsupported in the AGE creature library.")
+            print("Only one of these bones will provide animation for the vertex")
+        
+        group_index = resident_groups.pop()
+        vert_bone_map[v.index] = group_index
+        vert_bone_assignment_map[group_index].append(v.index)
+        
+    # create squashed vertices/normals lists
+    for x in range(bone_count):
+        optimized_verts = []
+        optimized_vert_map = {}
+        optimized_normals = []
+        optimized_normals_map = {}
+
+        bone_assignment_map = vert_bone_assignment_map[x]
+        for index in bone_assignment_map:
+            vert = utils.translate_vector(me.vertices[index].co)
+            normal = utils.round_vector(utils.translate_vector(me.vertices[index].normal), 6) 
+            
+            if not vert in optimized_vert_map:
+                vert_remap[vert] = len(optimized_verts) + len(export_vertices)
+                optimized_vert_map[vert] = len(optimized_verts)
+                optimized_verts.append(vert)
+            if not normal in optimized_normals_map:
+                normal_remap[normal] = len(optimized_normals) + len(export_normals)
+                optimized_normals_map[normal] = len(optimized_normals)
+                optimized_normals.append(normal)
+
+        # add to export data
+        export_vertices.extend(optimized_verts)
+        export_normals.extend(optimized_normals)
+        mtxv.append(len(optimized_verts))
+        mtxn.append(len(optimized_normals))
+            
+
+    # localize vertices if we have an armature
+    if am is not None:
+        print("localize vertices...")
+        localize_offset = 0
+        for bone_index, vcount in enumerate(mtxv):
+            bone_pos = utils.translate_vector(get_bone_pos(bones[bone_index]))
+            for y in range(localize_offset, localize_offset + vcount):
+                vertex = export_vertices[y]
+                export_vertices[y] = [vertex[0] - bone_pos[0],
+                                      vertex[1] - bone_pos[1],
+                                      vertex[2] - bone_pos[2]]
+            localize_offset += vcount
+        
     # make packets    
     print("make packets...")
     
@@ -257,8 +246,8 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
                         matrix_map[matrix_index] = len(matrices)
                         matrices.append(matrix_index)
                 
-                vert_index = vert_remap[loop.vertex_index]
-                normal_index = normal_remap[loop.vertex_index]
+                vert_index = vert_remap[utils.translate_vector(me.vertices[loop.vertex_index].co)]
+                normal_index = normal_remap[utils.round_vector(utils.translate_vector(me.vertices[loop.vertex_index].normal), 6)]
                 
                 uv = (0, 0) if uv_layer is None else utils.translate_uv(uv_layer[loop_index].uv)
                 color = (1, 1, 1, 1) if vc_layer is None else tuple(vc_layer.data[loop_index].color)     
@@ -365,7 +354,7 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
             file.write("\tdiffuse:\t%.6f %.6f %.6f\n" % mat_wrap.base_color[:3])
             file.write("\tspecular:\t%.6f %.6f %.6f\n" % (mat_wrap.specular, mat_wrap.specular, mat_wrap.specular))
             if texture is not None and texture.image is not None:
-                image_name = os.path.splitext(os.path.basename(texture.image.filepath))[0]
+                image_name = utils.get_image_name_from_path(texture.image.filepath)
                 file.write(f"\ttexture: 0 \"{image_name}\"\n")
             if version == "1.10":
                 # neat little attributes system. the only other valid attribute is 'int draworder'

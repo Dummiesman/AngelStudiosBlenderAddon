@@ -36,7 +36,15 @@ def object_basename(ob_name):
     elif ob_name_l.endswith("_vl"):
         return ob_name[:-3]
     return ob_name
-    
+
+def get_unique_object_names(obs):
+    """ return a list of unique object names. e.g. [body_h, body_m, hlight_l] -> [body, hlight] """
+    names = set()
+    for ob in obs:
+        ob_name_l = ob.name.lower()
+        names.add(object_basename(ob_name_l))
+    return list(names)
+         
 def det_object_mtx_type_old(ob):
    """ determine the mtx type for an object (old AGE games)"""
    basename = object_basename(ob.name)
@@ -135,6 +143,13 @@ def write_matrix(name, directory, ob):
         file.write(struct.pack('fff', (-object.location[0], object.location[2], object.location[1]))) # pivot
         file.write(struct.pack('fff', (-object.location[0], object.location[2], object.location[1]))) # location
     
+def get_image_name_from_path(image_path):
+    # strip off Blenders relative slashes, basename doesnt't like these
+    if image_path.startswith("//"):
+        image_path = image_path[2:]
+    return os.path.splitext(os.path.basename(image_path))[0]
+
+
 def _load_texture_from_path(file_path):
     from .tex_file import TEXFile
     
@@ -196,6 +211,13 @@ def translate_uv(uv):
 def translate_vector(vector):
     """ translate vector coordinate from/to blender<->AGE """
     return (-vector[0], vector[2], vector[1])
+
+def translate_size(vector):
+    """ translate size from/to blender<->AGE """
+    return (vector[0], vector[2], vector[1])
+
+def round_vector(vec, places):
+    return (round(vec[0], places), round(vec[1], places), round(vec[2], places))
 
 def triangle_strip_to_list(strip, clockwise):
     """convert a strip of triangles into a list of triangles"""
