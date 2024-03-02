@@ -61,9 +61,8 @@ class ExportSceneOperator(bpy.types.Operator):
     def write_bounding_box(self, name, directory, ob):
         bounds = utils.bounds(ob)
         bound_size = (bounds.x.max - bounds.x.min, bounds.y.max - bounds.y.min, bounds.z.max - bounds.z.min)
-        bound_center = ((bounds.x.min + bounds.x.max) / 2.0, (bounds.y.min + bounds.y.max) / 2.0, (bounds.z.min + bounds.z.max) / 2.0)
-        bound_centroid = (bound_center[0] - ob.location[0], bound_center[1] - ob.location[1], bound_center[2] - ob.location[2])
-
+        bound_centroid = ((bounds.x.min + bounds.x.max) / 2.0, (bounds.y.min + bounds.y.max) / 2.0, (bounds.z.min + bounds.z.max) / 2.0)
+        
         path = os.path.join(directory, f"{name}.bnd")
         with open(path, 'w') as file:
             file.write("version: 1.10\n")

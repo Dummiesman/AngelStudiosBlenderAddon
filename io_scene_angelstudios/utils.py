@@ -9,7 +9,6 @@ MATRIX_TYPE_FULL = 1
 def bounds(obj):
     """get the bounds of an object"""
     local_coords = obj.bound_box[:]
-    om = obj.matrix_world
     coords = [p[:] for p in local_coords]
 
     rotated = zip(*coords[::-1])
