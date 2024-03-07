@@ -2,8 +2,50 @@ import os, time, struct, math, sys
 import os.path as path
 
 from . import utils as utils
-import bpy, bmesh, mathutils
-from bpy_extras import io_utils, node_shader_utils
+import bpy
+from bpy_extras import  node_shader_utils
+
+class ModMaterialInfo:
+    def __init__(self, material_index):
+        self.packets = []
+        self.material_index = material_index
+
+class ModPacket:
+    def __init__(self):
+        self.triangles = []
+        self.adjuncts = []
+        self.matrices = []
+        
+
+class ModAdjunct:
+    def __init__(self, vertex_index = -1, normal_index = -1, color_index = -1, 
+                 uv0_index = -1, uv1_index = -1, matrix_index = -1):
+        self.vertex_index = vertex_index
+        self.normal_index = normal_index
+        self.color_index = color_index
+        self.uv_indices = (uv0_index, uv1_index)
+        self.matrix_index = matrix_index
+
+    def __eq__(self, other):
+        if not isinstance(other, ModAdjunct):
+            return False
+        return self.vertex_index == other.vertex_index and\
+               self.normal_index == other.normal_index and\
+               self.color_index == other.color_index and\
+               self.uv_indices[0] == other.uv_indices[0] and\
+               self.uv_indices[1] == other.uv_indices[1] and\
+               self.matrix_index == other.matrix_index
+
+    def __hash__(self):
+        hash_code = 614924594
+        hash_code = hash_code * -1521134295 + self.vertex_index
+        hash_code = hash_code * -1521134295 + self.normal_index
+        hash_code = hash_code * -1521134295 + self.color_index
+        hash_code = hash_code * -1521134295 + self.uv_indices[0]
+        hash_code = hash_code * -1521134295 + self.uv_indices[1]
+        hash_code = hash_code * -1521134295 + self.matrix_index
+        return hash_code
+
 
 ######################################################
 # HELPERS
@@ -93,7 +135,7 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
     export_uvs = []
     export_colors = []
     
-    packet_lists = {}
+    export_materials = []
     
     mtxv = []
     mtxn = []
@@ -219,16 +261,14 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
         index_offset = 0
         
         packet_loop_indices = material_loops[slot_index]
-        mat_packet_list = []
+        mat_info = ModMaterialInfo(slot_index)
         
         # build single packet
         while index_offset < len(packet_loop_indices):
             index_start = index_offset
             index_end = index_start
             
-            adjuncts = []
-            triangles = []
-            matrices = []
+            packet = ModPacket()
             
             matrix_map = {}
             adjunct_map = {}
@@ -243,8 +283,8 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
                     if len(matrix_map) >= max_packet_matrices:
                         break
                     else:
-                        matrix_map[matrix_index] = len(matrices)
-                        matrices.append(matrix_index)
+                        matrix_map[matrix_index] = len(packet.matrices)
+                        packet.matrices.append(matrix_index)
                 
                 vert_index = vert_remap[utils.translate_vector(me.vertices[loop.vertex_index].co)]
                 normal_index = normal_remap[utils.round_vector(utils.translate_vector(me.vertices[loop.vertex_index].normal), 6)]
@@ -259,10 +299,10 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
                 matrix_index_local = 0 if am is None else matrix_map[matrix_index]
                 
                 # add adjunct
-                adjunct = (vert_index, normal_index, color_index, uv_index, uv2_index, matrix_index_local)
+                adjunct = ModAdjunct(vert_index, normal_index, color_index, uv_index, uv2_index, matrix_index_local)
                 if not adjunct in adjunct_map:
-                    adjunct_map[adjunct] = len(adjuncts)
-                    adjuncts.append(adjunct)
+                    adjunct_map[adjunct] = len(packet.adjuncts)
+                    packet.adjuncts.append(adjunct)
                 loop_to_adjunct_map[loop_index] = adjunct_map[adjunct]
                 
                 # set index_end
@@ -277,21 +317,23 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
             for local_loop_index in range(index_start, index_end, 3):
                 tri_loop_indices = packet_loop_indices[local_loop_index:local_loop_index + 3]
                 local_tri_indices = [loop_to_adjunct_map[l] for l in tri_loop_indices]
-                triangles.append(local_tri_indices)
+                packet.triangles.append(local_tri_indices)
             
             # append paket
-            mat_packet_list.append([adjuncts, triangles, matrices])
+            mat_info.packets.append(packet)
     
         # map packet list
-        packet_lists[slot_index] = mat_packet_list
+        export_materials.append(mat_info)
         
-    # count adjuncts and prims
-    for packet_list in packet_lists.values():
-        for packet in packet_list:
-            adjuncts, triangles, matrices = packet
-            adjunct_count += len(adjuncts)
-            primitive_count += len(triangles)
+    # final preparation step: clear out materials with no packets
+    export_materials = [x for x in export_materials if len(x.packets) > 0]
     
+    # count adjuncts and prims
+    for export_material in export_materials:
+        for packet in export_material.packets:
+            adjunct_count += len(packet.adjuncts)
+            primitive_count += len(packet.triangles)
+
     # write mod file
     with open(filepath, 'w') as file:
         # write header
@@ -302,7 +344,7 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
         file.write(f"tex1s: {len(export_uvs)}\n") 
         file.write(f"tex2s: {0}\n") # todo version 1.10
         file.write(f"tangents: {0}\n") # never used in AGE?
-        file.write(f"materials: {material_count}\n")
+        file.write(f"materials: {len(export_materials)}\n")
         file.write(f"adjuncts: {adjunct_count}\n")
         file.write(f"primitives: {primitive_count}\n")
         file.write(f"matrices: {bone_count}\n")
@@ -331,8 +373,8 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
                 file.write(f"t1\t{uv[0]:.6f}\t{uv[1]:.6f}\n")
             file.write("\n") 
         
-        for material_index, material_slot in enumerate(ob.material_slots):
-            material = material_slot.material
+        for export_material in export_materials:
+            material = ob.material_slots[export_material.material_index].material
             mat_wrap = node_shader_utils.PrincipledBSDFWrapper(material) if material else None
             illum = get_illum_type(material)
             
@@ -340,13 +382,12 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
             triangles = 0
             texture = mat_wrap.base_color_texture
             
-            mat_packet_list = packet_lists[material_index]
-            for packet in mat_packet_list:
-                adjuncts += len(packet[0])
-                triangles += len(packet[1])
+            for packet in export_material.packets:
+                adjuncts += len(packet.adjuncts)
+                triangles += len(packet.triangles)
             
             file.write(f"mtl {material.name} {{\n")
-            file.write(f"\tpackets:\t{len(mat_packet_list)}\n")
+            file.write(f"\tpackets:\t{len(export_material.packets)}\n")
             file.write(f"\tprimitives:\t{triangles}\n")
             file.write("\ttextures:\t%i\n" % (0 if texture is None or texture.image is None else 1))
             file.write(f"\tillum:\t{illum}\n")
@@ -363,16 +404,15 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
             file.write("}\n\n")
         
         
-        for material_index in range(material_count):
-            mat_packet_list = packet_lists[material_index]
-            for adjuncts, triangles, matrices in mat_packet_list:
-                file.write(f"packet {len(adjuncts)} {len(triangles)} {len(matrices)} {{\n")
-                for adjunct in adjuncts:
-                    file.write("\tadj\t" + "\t".join([str(x) for x in adjunct]) + "\n")
-                for triangle in triangles:
+        for export_material in export_materials:
+            for packet in export_material.packets:
+                file.write(f"packet {len(packet.adjuncts)} {len(packet.triangles)} {len(packet.matrices)} {{\n")
+                for adjunct in packet.adjuncts:
+                    file.write("\tadj\t" + "\t".join([str(x) for x in [adjunct.vertex_index, adjunct.normal_index, adjunct.color_index, adjunct.uv_indices[0], adjunct.uv_indices[1], adjunct.matrix_index]]) + "\n")
+                for triangle in packet.triangles:
                     file.write("\ttri\t" + "\t".join([str(x) for x in triangle]) + "\n")
-                if len(matrices) > 0:
-                    file.write("\tmtx " + " ".join([str(x) for x in matrices]) + "\n")
+                if len(packet.matrices) > 0:
+                    file.write("\tmtx " + " ".join([str(x) for x in packet.matrices]) + "\n")
                 file.write("}\n\n")
         
         file.write("mtxv " + " ".join([str(x) for x in mtxv]) + "\n")
