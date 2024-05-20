@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Angel Studios Formats (ARTS/AGE)",
     "author": "Dummiesman",
-    "version": (0, 0, 5),
+    "version": (0, 0, 6),
     "blender": (3, 1, 0),
     "location": "File > Import-Export",
     "description": "Import-Export ARTS/AGE model and animation files",
@@ -254,7 +254,41 @@ class ImportANIM(bpy.types.Operator, ImportHelper):
                                             ))
 
         return import_anim.load(self, context, **keywords)
+
+class ExportGEO(bpy.types.Operator, ExportHelper):
+    """Export to GEOD file format (.geo)"""
+    bl_idname = "export_mesh.geo"
+    bl_label = 'Export GEO'
+
+    filename_ext = ".geo"
+    filter_glob: StringProperty(
+            default="*.geo",
+            options={'HIDDEN'},
+            )
+            
+    apply_modifiers: BoolProperty(
+        name="Apply Modifiers",
+        description="Apply object modifiers in the exported file",
+        default=True,
+        )
+    
+    selection_only: BoolProperty(
+        name="Selection Only",
+        description="Export only selected objects",
+        default=False,
+        )
+
+    def execute(self, context):
+        from . import export_geo
         
+        keywords = self.as_keywords(ignore=("axis_forward",
+                                            "axis_up",
+                                            "filter_glob",
+                                            "check_existing",
+                                            ))
+                                    
+        return export_geo.save(self, context, **keywords)
+            
 class ExportMOD(bpy.types.Operator, ExportHelper):
     """Export to MOD file format (.mod)"""
     bl_idname = "export_mesh.mod"
@@ -271,11 +305,11 @@ class ExportMOD(bpy.types.Operator, ExportHelper):
                                name = "Version",
                                default = '1.09')
                                
-    #apply_modifiers: BoolProperty(
-    #    name="Apply Modifiers",
-    #    description="Apply object modifiers in the exported file",
-    #    default=True,
-    #    )
+    apply_modifiers: BoolProperty(
+        name="Apply Modifiers",
+        description="Apply object modifiers in the exported file",
+        default=True,
+        )
 
     def execute(self, context):
         from . import export_mod
@@ -348,6 +382,7 @@ def menu_func_export(self, context):
     self.layout.operator(ExportBND.bl_idname, text="Bound (.bnd)")
     self.layout.operator(ExportMOD.bl_idname, text="Model (.mod)")
     self.layout.operator(ExportSKEL.bl_idname, text="Skeleton (.skel)")
+    self.layout.operator(ExportGEO.bl_idname, text="ARTS Scene (.geo)")
     self.layout.separator()
     
 def menu_func_import(self, context):
@@ -364,6 +399,7 @@ def menu_func_import(self, context):
 
 # Register factories
 def register():
+    bpy.utils.register_class(ExportGEO)
     bpy.utils.register_class(ImportDLP)
     bpy.utils.register_class(ImportBMS)
     bpy.utils.register_class(ImportBND)
@@ -401,6 +437,7 @@ def unregister():
     bpy.utils.unregister_class(ImportBND)
     bpy.utils.unregister_class(ImportBMS)
     bpy.utils.unregister_class(ImportDLP)
+    bpy.utils.unregister_class(ExportGEO)
         
 
 if __name__ == "__main__":

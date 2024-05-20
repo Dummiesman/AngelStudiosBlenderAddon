@@ -369,10 +369,6 @@ def save(operator,
        raise Exception("No BOUND object found in scene")
     
     print("exporting BOUND: %r..." % (filepath))
-
-    if bpy.ops.object.select_all.poll():
-        bpy.ops.object.select_all(action='DESELECT')
-
     time1 = time.perf_counter()
     
     # write bnd
