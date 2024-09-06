@@ -4,9 +4,19 @@ from . import utils as utils
 import time, struct, os
 
 ######################################################
+# GLOBAL CONTEXT
+######################################################
+import_context = None  # Global import context
+
+######################################################
 # HELPERS
 ######################################################
 def create_material(name):
+  
+  global import_context    
+  if import_context is None:
+    raise RuntimeError("Import context is not set. Ensure import_bms_object is called first.")
+
   # setup material
   mtl = bpy.data.materials.new(name=name)
   mtl.specular_intensity = 0
@@ -14,6 +24,39 @@ def create_material(name):
   mtl.use_nodes = True
   mtl.use_backface_culling = True
 
+  # clear existing nodes
+  nodes = mtl.node_tree.nodes
+  nodes.clear()
+    
+  # create new material nodes
+  material_output = nodes.new(type='ShaderNodeOutputMaterial')
+  material_output.location = (200, 0)
+    
+  principled_bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
+  principled_bsdf.location = (-200, 0)
+    
+  texture_node = nodes.new(type='ShaderNodeTexImage')
+  texture_node.location = (-600, 0)
+
+  imagepath = os.path.join(import_context, name + '.DDS')
+
+  # fetch and assign image
+  if imagepath:
+    if os.path.exists(imagepath):
+        try:
+            texture_image = bpy.data.images.load(imagepath)
+            texture_node.image = texture_image
+        except Exception as e:
+            print(f"Failed to load image {imagepath}: {e}")
+    else:
+        print(f"Texture file not found: {imagepath}")
+  else:
+    print("Invalid image path.")
+    
+  # connect nodes
+  mtl.node_tree.links.new(principled_bsdf.inputs['Base Color'], texture_node.outputs['Color'])
+  mtl.node_tree.links.new(material_output.inputs['Surface'], principled_bsdf.outputs['BSDF'])
+    
   return mtl
 
 def vert_key(position, normal=None):
@@ -26,6 +69,10 @@ def vert_key(position, normal=None):
 # IMPORT
 ######################################################
 def import_bms_object(filepath):
+
+    global import_context
+    import_context = os.path.dirname(filepath)
+
     scn = bpy.context.scene
 
     points = []
@@ -152,6 +199,8 @@ def import_bms_object(filepath):
         # free resources
         bm.to_mesh(me)
         bm.free()
+
+        import_context = None
 
         return ob
 

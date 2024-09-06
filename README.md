@@ -4,7 +4,7 @@ A Blender add-on that handles several formats used in Angel Studios / Rockstar S
 ## Format chart
 | Format | Import Support | Export Support | Notes |
 |--------|----------------|----------------|-------|
-|BMS     | Yes            |  None          |  No texture import, only very basic material support     |
+|BMS     | Yes            |  None          |  Texture import tested for Midtown Madness 1 files. Make sure the texture files reside in the same directory as the .BMS file     |
 |DLP        | Yes               | None            |  No texture import, only very basic material support       |
 |MOD/XMOD        |  v1.06 through v1.10              |  v1.09 and v1.10              |       |
 |BND        |  v1.01 through v1.10              |  v1.01 and v1.10              |  Only geometry type bounds are supported. There is currently no handling for box/sphere/hotdog/composite/grid     |
