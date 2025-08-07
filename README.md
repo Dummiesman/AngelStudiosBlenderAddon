@@ -23,17 +23,27 @@ A Blender add-on that handles several formats used in Angel Studios / Rockstar S
 
 **Known issues:** Models with skeletons don't import correctly at the moment, and animate completely incorrectly.
 
-## Importing a Scene
+## Importing a Scene (AGE)
 Under the "Angel Tools" menu in the menu strip, select "Import MOD/XMOD Scene"
-Paste in your games `model` path into the `Models Path` input e.g. `C:\Games\Midnight Club 2\models`
+Navigate to the path of the models you're importing e.g. `C:\Games\Midnight Club 2\models`
 Then type in the scene name such as `vp_civicb` and click OK
 
-## Exporting a Scene
+## Importing a Scene (ARTS)
+Under the "Angel Tools" menu in the menu strip, select "Import BMS Scene"
+Navigate to the path of the models you're importing e.g. `C:\Games\Midtown Madness 1\BMS\VPBUG`
+Then click OK
+
+## Exporting a Scene (AGE)
 Under the "Angel Tools" menu in the menu strip, select "ExportMOD/XMOD Scene"
-Paste in your games `model` path into the `Models Path` input e.g. `C:\Games\Midnight Club 2\models`
+Navigate to the path of the models you're importing e.g. `C:\Games\Midnight Club 2\models`
 Type in your scene name such as `vp_civicb`
 Select version `1.10` (`1.09` doesn't have shininess support in materials)
 Select `XMOD` extension
+Click OK
+
+## Exporting a Scene (ARTS)
+Under the "Angel Tools" menu in the menu strip, select "Export BMS Scene"
+Navigate to the path of the models you're importing e.g. `C:\Games\Midtown Madness 1\BMS\VPBUG`
 Click OK
 
 ## Materials and Textures
