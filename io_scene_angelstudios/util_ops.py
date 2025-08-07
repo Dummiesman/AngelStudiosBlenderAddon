@@ -23,6 +23,12 @@ class ShowLodOnlyHOperator(NamedObjectHideOperatorBase):
     
     def execute(self, context):
         self.hide_suffix(context, "_h")
+
+        scene = context.scene
+        for ob in scene.objects:
+            if ob.name == "H" or ob.name == "h":
+                ob.hide_set(False)
+
         return {'FINISHED'}
     
 class ShowLodOnlyMOperator(NamedObjectHideOperatorBase):
@@ -31,6 +37,12 @@ class ShowLodOnlyMOperator(NamedObjectHideOperatorBase):
 
     def execute(self, context):
         self.hide_suffix(context, "_m")
+
+        scene = context.scene
+        for ob in scene.objects:
+            if ob.name == "M" or ob.name == "m":
+                ob.hide_set(False)
+
         return {'FINISHED'}
     
 class ShowLodOnlyLOperator(NamedObjectHideOperatorBase):
@@ -39,6 +51,12 @@ class ShowLodOnlyLOperator(NamedObjectHideOperatorBase):
     
     def execute(self, context):
         self.hide_suffix(context, "_l")
+
+        scene = context.scene
+        for ob in scene.objects:
+            if ob.name == "L" or ob.name == "l":
+                ob.hide_set(False)
+
         return {'FINISHED'}
     
 class ShowLodOnlyVLOperator(NamedObjectHideOperatorBase):
@@ -47,6 +65,12 @@ class ShowLodOnlyVLOperator(NamedObjectHideOperatorBase):
     
     def execute(self, context):
         self.hide_suffix(context, "_vl")
+
+        scene = context.scene
+        for ob in scene.objects:
+            if ob.name == "VL" or ob.name == "vl":
+                ob.hide_set(False)
+
         return {'FINISHED'}
     
 class HideDamagedPanels(NamedObjectHideOperatorBase):

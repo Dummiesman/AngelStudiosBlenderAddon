@@ -27,9 +27,12 @@ from bpy_extras.io_utils import (
         ExportHelper,
         )
         
+from . import bl_preferences as bl_preferences
 from . import import_tex as import_tex
 from . import import_modscene as import_modscene
 from . import export_modscene as export_modscene
+from . import import_bmsscene as import_bmsscene
+from . import export_bmsscene as export_bmsscene
 from . import util_ops as util_ops
 
 # ARTS
@@ -180,7 +183,8 @@ class ExportBND(bpy.types.Operator, ExportHelper):
             sub.enabled = self.export_binary
             sub.prop(self, "export_terrain")
         else:
-            pass # TODO :Export grid?
+            sub = layout.row()
+            sub.prop(self, "export_binary")
         
     def execute(self, context):
         from . import export_bnd
@@ -255,6 +259,55 @@ class ImportANIM(bpy.types.Operator, ImportHelper):
 
         return import_anim.load(self, context, **keywords)
 
+class ExportBMS(bpy.types.Operator, ExportHelper):
+    """Export to BMS file format (.bms)"""
+    bl_idname = "export_mesh.bms"
+    bl_label = 'Export BMS'
+
+    filename_ext = ".bms"
+    filter_glob: StringProperty(
+            default="*.bms",
+            options={'HIDDEN'},
+            )
+            
+    apply_modifiers: BoolProperty(
+        name="Apply Modifiers",
+        description="Apply object modifiers in the exported file",
+        default=True,
+        )
+    
+    export_normals: BoolProperty(
+        name="Include Normals",
+        default=True,
+        )
+    
+    export_colors: BoolProperty(
+        name="Include Vertex Colors",
+        default=True,
+        )
+    
+    export_uvs: BoolProperty(
+        name="Include UV Mapping",
+        default=True,
+        )
+    
+    export_planes: BoolProperty(
+        name="Export Planes",
+        description="Compute and export a plane for mesh faces, typically desired as these are used in rendering",
+        default=True,
+        )
+
+    def execute(self, context):
+        from . import export_bms
+        
+        keywords = self.as_keywords(ignore=("axis_forward",
+                                            "axis_up",
+                                            "filter_glob",
+                                            "check_existing",
+                                            ))
+                                    
+        return export_bms.save(self, context, **keywords)
+    
 class ExportGEO(bpy.types.Operator, ExportHelper):
     """Export to GEOD file format (.geo)"""
     bl_idname = "export_mesh.geo"
@@ -275,6 +328,12 @@ class ExportGEO(bpy.types.Operator, ExportHelper):
     selection_only: BoolProperty(
         name="Selection Only",
         description="Export only selected objects",
+        default=False,
+        )
+    
+    run_translator: BoolProperty(
+        name="Run Asset Manager Translation",
+        description="If Angel dev tools are found, run asset translation to create runtime files",
         default=False,
         )
 
@@ -304,6 +363,14 @@ class ExportMOD(bpy.types.Operator, ExportHelper):
                                         ('1.10','1.10','','',110)],
                                name = "Version",
                                default = '1.09')
+                               
+    def filetype_update(self, context):
+        ExportMOD.filename_ext = "." + self.export_extension.lower()
+        
+    export_extension : EnumProperty(items = [('mod','mod','','',0), 
+                                             ('xmod','xmod','','',1)],
+                               name = "Extension",
+                               default = 'mod', update = filetype_update)
                                
     apply_modifiers: BoolProperty(
         name="Apply Modifiers",
@@ -356,6 +423,11 @@ class AngelStudiosMenu(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
+        layout.operator("angelstudios.import_bms_scene")
+        layout.operator("angelstudios.export_bms_scene")
+
+        layout.separator()
+
         layout.operator("angelstudios.import_mod_scene")
         layout.operator("angelstudios.export_mod_scene")
         layout.operator("angelstudios.import_tex")
@@ -382,15 +454,17 @@ def menu_func_export(self, context):
     self.layout.operator(ExportBND.bl_idname, text="Bound (.bnd)")
     self.layout.operator(ExportMOD.bl_idname, text="Model (.mod)")
     self.layout.operator(ExportSKEL.bl_idname, text="Skeleton (.skel)")
+    self.layout.operator(ExportBMS.bl_idname, text="ARTS Mesh Set (.bms)")
     self.layout.operator(ExportGEO.bl_idname, text="ARTS Scene (.geo)")
     self.layout.separator()
     
 def menu_func_import(self, context):
     self.layout.separator()
     self.layout.label(text="Angel Studios Formats")
-    self.layout.operator(ImportBMS.bl_idname, text="Mesh Set (*.bms)")
-    self.layout.operator(ImportDLP.bl_idname, text="DLP Template (*.dlp)")
+    self.layout.operator(ImportBMS.bl_idname, text="ARTS Mesh Set (*.bms)")
+    self.layout.operator(ImportDLP.bl_idname, text="ARTS DLP Template (*.dlp)")
     self.layout.operator(ImportBND.bl_idname, text="Bound (.bnd)")
+    self.layout.operator(ImportEM.bl_idname, text="Edge Model (.em)")
     self.layout.operator(ImportMOD.bl_idname, text="Model (.mod)")
     self.layout.operator(ImportSKEL.bl_idname, text="Skeleton (.skel)")
     # self.layout.operator(ImportANIM.bl_idname, text="Animation (.anim)")
@@ -399,6 +473,8 @@ def menu_func_import(self, context):
 
 # Register factories
 def register():
+    bl_preferences.register()
+    bpy.utils.register_class(ExportBMS)
     bpy.utils.register_class(ExportGEO)
     bpy.utils.register_class(ImportDLP)
     bpy.utils.register_class(ImportBMS)
@@ -409,10 +485,13 @@ def register():
     bpy.utils.register_class(ImportSKEL)
     bpy.utils.register_class(ExportSKEL)
     bpy.utils.register_class(ImportANIM)
+    bpy.utils.register_class(ImportEM)
     util_ops.register()
     import_tex.register()
     import_modscene.register()
     export_modscene.register()
+    import_bmsscene.register()
+    export_bmsscene.register()
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
     bpy.utils.register_class(AngelStudiosMenu)
@@ -426,8 +505,11 @@ def unregister():
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
     export_modscene.register()
     import_modscene.register()
+    export_bmsscene.register()
+    import_bmsscene.register()
     import_tex.unregister()
     util_ops.unregister()
+    bpy.utils.unregister_class(ImportEM)
     bpy.utils.unregister_class(ImportANIM)
     bpy.utils.unregister_class(ExportSKEL)
     bpy.utils.unregister_class(ImportSKEL)
@@ -438,7 +520,8 @@ def unregister():
     bpy.utils.unregister_class(ImportBMS)
     bpy.utils.unregister_class(ImportDLP)
     bpy.utils.unregister_class(ExportGEO)
-        
+    bpy.utils.unregister_class(ExportBMS)
+    bl_preferences.unregister()
 
 if __name__ == "__main__":
     register()

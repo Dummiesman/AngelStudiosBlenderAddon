@@ -12,13 +12,14 @@ from bpy.props import (
         PointerProperty
         )
 
-class ExportSceneOperator(bpy.types.Operator):
+class ExportMODSceneOperator(bpy.types.Operator):
     """Bulk export MOD/XMOD as a scene"""
     bl_idname = "angelstudios.export_mod_scene"
     bl_label = "Export MOD/XMOD Scene"
     bl_options = {'REGISTER'}
 
-    mod_path: StringProperty(name="Models Path")
+
+    directory: StringProperty(name="Output Directory")        
     scene_name: StringProperty(name="Scene Name")
 
     apply_modifiers: BoolProperty(
@@ -50,6 +51,12 @@ class ExportSceneOperator(bpy.types.Operator):
                                              ('xmod','xmod','','',1)],
                                name = "Extension",
                                default = 'mod')
+                               
+    # Filters folders
+    filter_folder = BoolProperty(
+        default=True,
+        options={"HIDDEN"}
+        )
 
     @classmethod
     def poll(cls, context):
@@ -81,20 +88,23 @@ class ExportSceneOperator(bpy.types.Operator):
         ob_map = {ob.name.lower(): ob for ob in obs}
         unique_obs = utils.get_unique_object_names(obs)
 
-        if not os.path.isdir(self.mod_path):
+        if len(self.scene_name) == 0:
+            self.report({"WARNING"}, "No scene name was specified, did you intend to specify one?")
+
+        if not os.path.isdir(self.directory):
             self.report({"ERROR"}, "Models Path doesn't exist!")
         elif len(obs) == 0:
             self.report({"ERROR"}, "Nothing to export (No selection or empty scene)")
         else:
             from . import export_mod
             scene_prefix = f"{self.scene_name}_"
-            basepath = os.path.abspath(os.path.join(self.mod_path, ".."))
+            basepath = os.path.abspath(os.path.join(self.directory, ".."))
             matrix_basepath = os.path.join(basepath, "geometry") 
             bound_basepath = os.path.join(basepath, "bound")
 
             # export mod/xmod
             for ob in obs:
-                filepath = os.path.join(self.mod_path, f"{scene_prefix}{ob.name}.{self.export_extension}")
+                filepath = os.path.join(self.directory, f"{scene_prefix}{ob.name}.{self.export_extension}")
                 export_mod.export_mod_object(filepath, ob, self.mod_version, self.apply_modifiers)
             
             # export matrices/bounds for the highest LOD
@@ -120,11 +130,12 @@ class ExportSceneOperator(bpy.types.Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 
 def register():
-    bpy.utils.register_class(ExportSceneOperator)
+    bpy.utils.register_class(ExportMODSceneOperator)
 
 def unregister():
-    bpy.utils.unregister_class(ExportSceneOperator)
+    bpy.utils.unregister_class(ExportMODSceneOperator)

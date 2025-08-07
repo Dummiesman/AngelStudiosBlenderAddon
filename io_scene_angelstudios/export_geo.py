@@ -1,4 +1,5 @@
 import os, time
+import subprocess
 
 import bpy
 from . import utils as utils
@@ -18,9 +19,14 @@ def export_geo(filepath, selection_only=False, apply_modifiers=True):
 
         # get final meshes
         final_meshes = {}
+        depsgraph = bpy.context.evaluated_depsgraph_get()
         for ob in export_obs:
-            export_ob = ob.evaluated_get(bpy.context.evaluated_depsgraph_get()) if apply_modifiers else ob.data
-            me = export_ob.to_mesh()
+            me = None
+            if apply_modifiers:
+                export_ob = ob.evaluated_get(depsgraph)
+                me = export_ob.to_mesh()
+            else:
+                me = ob.data.copy()
             me.calc_normals_split()
             final_meshes[ob.name] = me
 
@@ -32,7 +38,6 @@ def export_geo(filepath, selection_only=False, apply_modifiers=True):
             mat_wrap = node_shader_utils.PrincipledBSDFWrapper(material) if material else None
             texture = mat_wrap.base_color_texture
             if texture is not None and texture.image is not None:
-                print("EXTENSION TYPE:" + texture.extension)
                 textures_set.add(texture.image)
 
         # gather total stats
@@ -204,6 +209,56 @@ def export_geo(filepath, selection_only=False, apply_modifiers=True):
         file.write("## EOF\n")
     return
 
+######################################################
+# TOOLCHAIN
+######################################################
+def run_translator_process(operator, filepath, review=False):
+    """Run the asset manager and convert to runtime files (blocking)"""
+    if not os.path.exists("c:\\toolroot.ini"):
+        operator.report({'WARNING'}, "Translation failed, cannot find toolroot.ini")
+        return
+    
+    # get the path from toolroot
+    tools_path = None
+    with open('c:\\toolroot.ini', 'r') as file:
+        tools_path = file.read().strip()
+    if not os.path.exists(tools_path):
+        operator.report({'WARNING'}, f"Translation failed, toolroot.ini points to nonexistant path {tools_path}")
+        return
+    
+    # check if am.exe exists
+    am_path = os.path.join(tools_path, "am.exe")
+    if not os.path.exists(am_path):
+        operator.report({'WARNING'}, "Translation failed, cannot fnd am.exe")
+        return
+    
+    # determine the shop path, the exported geo should be in shop\geo\*
+    shop_path = os.path.abspath(os.path.join(tools_path, "..", "shop"))
+    if not filepath.lower().startswith(shop_path.lower()):
+        operator.report({'ERROR'}, "Exported file is not in the correct shop directory")
+        return
+    
+    # we are now ready to run the translation
+    geo_input_path = filepath[len(shop_path)+1:]
+    am_args = ["-translate", geo_input_path]
+    if review: 
+        am_args.insert(0, "-review")
+        am_args.insert(0, "-bw")
+    p = subprocess.Popen([am_path, *am_args], shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=tools_path)
+
+    processing_errors = []
+    process_success = True
+    for line in p.stdout.readlines():
+        print(line.strip())
+        if "errors in processing." in line:
+            process_success = False
+        if line.startswith("ERROR:"):
+            processing_errors.append(line.strip())
+    
+    if not process_success:
+        operator.report({'WARNING'}, "Translation had errors:\n" + "\n".join(processing_errors))   
+    else:
+        operator.report({'INFO'}, "Translation finished succesfully")   
 
 ######################################################
 # EXPORT
@@ -213,6 +268,7 @@ def save(operator,
          filepath="",
          apply_modifiers=False,
          selection_only=False,
+         run_translator=False,
          ):
     
     print("exporting GEO: %r..." % (filepath))
@@ -220,6 +276,10 @@ def save(operator,
     
     # write geo
     export_geo(filepath, selection_only, apply_modifiers)
+
+    # run asset manager
+    if run_translator:
+        run_translator_process(operator, filepath, review=True)
       
     # export complete
     print(" done in %.4f sec." % (time.perf_counter() - time1))

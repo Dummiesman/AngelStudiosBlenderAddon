@@ -1,7 +1,8 @@
 import bpy, bmesh
 from . import binary_ops_arts as binary_ops_arts
 from . import utils as utils
-import time, struct, os
+import time, struct, os, math
+from bpy_extras import node_shader_utils
 
 ######################################################
 # HELPERS
@@ -82,7 +83,7 @@ def import_bms_object(filepath):
                 color = struct.unpack('<BBBB', file.read(4))
                 colors.append((color[2] / 255.0, color[1] / 255.0, color[0] / 255.0, color[3] / 255.0))
 
-        vertex_indices = struct.unpack(f"{num_adjuncts}H", file.read(num_adjuncts * 2))
+        vertex_indices = struct.unpack(f"<{num_adjuncts}H", file.read(num_adjuncts * 2))
 
         if (flags & 16) != 0:
             # planes
@@ -90,7 +91,7 @@ def import_bms_object(filepath):
 
         # texture and surface indices
         texture_indices = struct.unpack(f"<{num_surfaces}B", file.read(num_surfaces))
-        surface_indices = struct.unpack(f"{num_indices}H", file.read(num_indices * 2))
+        surface_indices = struct.unpack(f"<{num_indices}H", file.read(num_indices * 2))
         
         # build object&mesh
         name = "BMSMesh"
@@ -105,7 +106,19 @@ def import_bms_object(filepath):
         vc_layer = bm.loops.layers.color.new()
 
         for x in range(num_textures):
-            ob.data.materials.append(create_material(textures[x]))
+            texture_name = textures[x]
+
+            asset_root_path = os.path.abspath(os.path.join(os.path.dirname(filepath), ".."))
+            if os.path.basename(asset_root_path).upper() == "BMS": # one more, we're in a BMS dir
+                asset_root_path = os.path.abspath(os.path.join(os.path.dirname(filepath), "..", ".."))
+            asset_base_path = os.path.abspath(os.path.dirname(filepath))
+            texture = utils.try_load_dds_texture(texture_name, (os.path.join(asset_root_path, "TEX16O"), os.path.join(asset_root_path, "TEX16A"), asset_base_path))
+
+            mat = create_material(texture_name)
+            mat_wrap = node_shader_utils.PrincipledBSDFWrapper(mat, is_readonly=False) 
+            mat_wrap.base_color_texture.image = texture
+
+            ob.data.materials.append(mat)
 
         # compile vertex_map
         vertex_map = {}
@@ -141,7 +154,7 @@ def import_bms_object(filepath):
                     if flags & 4 != 0:
                         face.loops[xx][vc_layer] = colors[indices[xx]]
 
-                face.material_index = 0 if texture_indices[x] == 0 else texture_indices[x] - 1
+                face.material_index = (texture_indices[x] - 1)
                 face.smooth = True
             except Exception as e:
                 print(str(e))

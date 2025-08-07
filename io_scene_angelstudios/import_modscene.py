@@ -12,13 +12,13 @@ from bpy.props import (
         PointerProperty
         )
 
-class ImportSceneOperator(bpy.types.Operator):
+class ImportMODSceneOperator(bpy.types.Operator):
     """Bulk import MOD/XMOD as a scene"""
     bl_idname = "angelstudios.import_mod_scene"
     bl_label = "Import MOD/XMOD Scene"
     bl_options = {'REGISTER'}
 
-    mod_path: StringProperty(name="Models Path")
+    directory: StringProperty(name="Input Directory")
     scene_name: StringProperty(name="Scene Name")
 
     @classmethod
@@ -26,22 +26,20 @@ class ImportSceneOperator(bpy.types.Operator):
         return True
 
     def execute(self, context):
-        if not os.path.isdir(self.mod_path):
-            self.report({"ERROR"}, "Models Path doesn't exist!")
-        elif len(self.scene_name) == 0:
+        if len(self.scene_name) == 0:
             self.report({"ERROR"}, "Scene name was empty")
         else:
             from . import import_mod
             
             # import models
             scene_prefix = f"{self.scene_name}_"
-            matrix_basepath = os.path.join(os.path.abspath(os.path.join(self.mod_path, "..")), "geometry") # Dis-gusting. Temporary.
-            for file in os.listdir(self.mod_path):
+            matrix_basepath = os.path.join(os.path.abspath(os.path.join(self.directory, "..")), "geometry") # Dis-gusting. Temporary.
+            for file in os.listdir(self.directory):
                 file_l = file.lower()
                 if file_l.startswith(scene_prefix) and (file_l.endswith(".mod") or file_l.endswith(".xmod")):
                     print("IMPORTING " + file_l)
                     file_noext = os.path.splitext(file)[0]
-                    imported_ob = import_mod.import_mod_object(filepath=os.path.join(self.mod_path, file))
+                    imported_ob = import_mod.import_mod_object(filepath=os.path.join(self.directory, file))
                     imported_ob.name = file_noext[len(scene_prefix):]
                     imported_ob_basename = utils.object_basename(file_noext)
                     if os.path.exists(os.path.join(matrix_basepath, f"{imported_ob_basename}.mtx")):
@@ -61,10 +59,11 @@ class ImportSceneOperator(bpy.types.Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 def register():
-    bpy.utils.register_class(ImportSceneOperator)
+    bpy.utils.register_class(ImportMODSceneOperator)
 
 def unregister():
-    bpy.utils.unregister_class(ImportSceneOperator)
+    bpy.utils.unregister_class(ImportMODSceneOperator)

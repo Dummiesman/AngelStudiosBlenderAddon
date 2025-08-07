@@ -72,8 +72,13 @@ def bounds_intersect(amin, amax, bmin, bmax):
 ######################################################
 def export_terrain_bound(filepath, ob, apply_modifiers):
     # get mesh data
-    export_ob = ob.evaluated_get(bpy.context.evaluated_depsgraph_get()) if apply_modifiers else ob.data
-    me = export_ob.to_mesh()
+    me = None
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    if apply_modifiers:
+        export_ob = ob.evaluated_get(depsgraph)
+        me = export_ob.to_mesh()
+    else:
+        me = ob.data.copy()
     
     # get bmesh
     bm = bmesh.new()
@@ -227,20 +232,24 @@ def export_terrain_bound(filepath, ob, apply_modifiers):
         bm.free()
     return
     
-def export_binary_bound(filepath, ob, apply_modifiers=True):
+def export_binary_bound(filepath, ob, ascii_version="1.01", apply_modifiers=True):
     with open(filepath, 'wb') as file:
         # get mesh data
-        export_ob = ob.evaluated_get(bpy.context.evaluated_depsgraph_get()) if apply_modifiers else ob.data
-        me = export_ob.to_mesh()
-        export_material_names = get_bnd_materials(ob)
-            
+        me = None
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        if apply_modifiers:
+            export_ob = ob.evaluated_get(depsgraph)
+            me = export_ob.to_mesh()
+        else:
+            me = ob.data.copy()
+                
         # get bmesh
         bm = bmesh.new()
         bm.from_mesh(me)
         bm.verts.index_update()
 
         # header
-        file.write(struct.pack('<B', 1))
+        file.write(struct.pack('<B', 1)) # version. always 1
         file.write(struct.pack('<LLL', len(bm.verts), len(export_material_names), len(bm.faces)))
         
         # vertices
@@ -250,9 +259,12 @@ def export_binary_bound(filepath, ob, apply_modifiers=True):
         # materials
         for mat_name in export_material_names:
             write_char_array(file, mat_name, 32)
-            file.write(struct.pack('<ff', 0.1, 0.5))
-            write_char_array(file, 'none', 32)
-            write_char_array(file, 'none', 32)
+            file.write(struct.pack('<ff', 0.1, 0.5)) # elasticity and friction
+            if ascii_version == "1.01":
+                write_char_array(file, 'none', 32)
+                write_char_array(file, 'none', 32)
+            else:
+               file.write(struct.pack("<HH", 0, 0))
 
         # faces
         for face in bm.faces:
@@ -274,8 +286,13 @@ def export_binary_bound(filepath, ob, apply_modifiers=True):
 def export_bound(filepath, ob, version="1.01", apply_modifiers=True):
     with open(filepath, 'w') as file:
         # get mesh data
-        export_ob = ob.evaluated_get(bpy.context.evaluated_depsgraph_get()) if apply_modifiers else ob.data
-        me = export_ob.to_mesh()
+        me = None
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        if apply_modifiers:
+            export_ob = ob.evaluated_get(depsgraph)
+            me = export_ob.to_mesh()
+        else:
+            me = ob.data.copy()
         
         # get bmesh
         bm = bmesh.new()
@@ -376,7 +393,7 @@ def save(operator,
     
     if export_binary:
       # write BBND
-      export_binary_bound(filepath[:-3] + "bbnd", bound_ob, apply_modifiers)
+      export_binary_bound(filepath[:-3] + "bbnd", bound_ob, bnd_version, apply_modifiers)
     if export_terrain:
       # write TER
       export_terrain_bound(filepath[:-3] + "ter", bound_ob, apply_modifiers)

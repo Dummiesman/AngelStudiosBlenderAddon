@@ -66,7 +66,18 @@ def det_object_mtx_type(ob):
     else:
      return MATRIX_TYPE_NONE
    
-    
+
+# TODO: determine a proper name for this
+# ReadToken() binary implementation    
+def read_null_terminated_string(file):
+    str = ""
+    while True:
+        c = file.read(1)
+        if c == b"\x00" or c == b"\x20":
+            break
+        str += c.decode('ascii')
+    return str
+
 def read_matrix3x4(name, directory):
     """search for *.mtx and load if found"""
     matrix_path = os.path.join(directory, f"{name}.mtx")
@@ -148,13 +159,16 @@ def get_image_name_from_path(image_path):
         image_path = image_path[2:]
     return os.path.splitext(os.path.basename(image_path))[0]
 
+def get_image_name_from_path_noext(image_path):
+    withext = get_image_name_from_path(image_path)
+    return os.path.splitext(withext)[0]
 
 def _load_texture_from_path(file_path):
     from .tex_file import TEXFile
     
     # extract the filename for manual image format names
     image_name= os.path.splitext(os.path.basename(file_path))[0]   
-    if file_path.lower().endswith(".tex"):
+    if file_path.lower().endswith(".tex") or file_path.lower().endswith(".xtex"):
         tf = TEXFile(file_path)
         if tf.is_valid():
             if tf.is_compressed_format():
@@ -188,6 +202,11 @@ def try_load_texture(tex_name, search_paths):
                 bl_img = _load_texture_from_path(check_file)
 
             if bl_img is None:
+                check_file = os.path.join(search_path, tex_name + ".xtex")
+                if os.path.exists(check_file):
+                    bl_img = _load_texture_from_path(check_file)
+
+            if bl_img is None:
                 standard_extensions = (".tga", ".bmp", ".png")
                 for ext in standard_extensions:
                     check_file = os.path.join(search_path, tex_name + ext)
@@ -202,7 +221,25 @@ def try_load_texture(tex_name, search_paths):
     if bl_img is None:
         bl_img = _image_load_placeholder(tex_name, os.path.join(search_path, tex_name))
     return bl_img
+
+def try_load_dds_texture(tex_name, search_paths):
+    existing_image = bpy.data.images.get(tex_name)
+    if existing_image is not None:
+        return existing_image
     
+    bl_img = None
+    for search_path in search_paths:
+        if os.path.isdir(search_path):
+            check_file = os.path.join(search_path, tex_name + ".dds")
+            if os.path.exists(check_file):
+                bl_img = _load_texture_from_path(check_file)
+            if bl_img is not None:
+                break
+
+    if bl_img is None:
+        bl_img = _image_load_placeholder(tex_name, os.path.join(search_path, tex_name))
+    return bl_img
+   
 def translate_uv(uv):
     """ translate uv coordinate from/to blender<->AGE """
     return (uv[0], 1 - uv[1])

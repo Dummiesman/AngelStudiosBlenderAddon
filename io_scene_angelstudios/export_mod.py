@@ -108,8 +108,13 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
     bone_count = len(am.bones) if am is not None else 1
     
     # get mesh data
-    export_ob = ob.evaluated_get(bpy.context.evaluated_depsgraph_get()) if apply_modifiers else ob.data
-    me = export_ob.to_mesh()
+    me = None
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    if apply_modifiers:
+        export_ob = ob.evaluated_get(depsgraph)
+        me = export_ob.to_mesh()
+    else:
+        me = ob.data.copy()
 
     uv_layer = me.uv_layers.active.data if me.uv_layers.active is not None else None
     vc_layer = me.vertex_colors.active
@@ -177,17 +182,20 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
             
     for local_loop_index, loop_index in enumerate(triangle_indices):
         polygon = me.polygons[loops_to_polygons[loop_index]]
-        material_loops[polygon.material_index].append(loop_index)
-    
-        uv = (0, 0) if uv_layer is None else utils.translate_uv(uv_layer[loop_index].uv)
-        if not uv in uv_remap:
-            uv_remap[uv] = len(export_uvs)
-            export_uvs.append(uv)
+        if polygon.material_index >= 0 and polygon.material_index < len(material_loops):
+            material_loops[polygon.material_index].append(loop_index)
         
-        color = (1, 1, 1, 1) if vc_layer is None else tuple(vc_layer.data[loop_index].color)     
-        if not color in color_remap:
-            color_remap[color] = len(export_colors)
-            export_colors.append(color)
+            uv = (0, 0) if uv_layer is None else utils.translate_uv(uv_layer[loop_index].uv)
+            if not uv in uv_remap:
+                uv_remap[uv] = len(export_uvs)
+                export_uvs.append(uv)
+            
+            color = (1, 1, 1, 1) if vc_layer is None else tuple(vc_layer.data[loop_index].color)     
+            if not color in color_remap:
+                color_remap[color] = len(export_colors)
+                export_colors.append(color)
+        else:
+            print(f"WARNING: Face with out of range material index on object {ob.name}")
 
     # we first need to sort vertices by what bone they're assigned to
     # then export geometry in order of material
