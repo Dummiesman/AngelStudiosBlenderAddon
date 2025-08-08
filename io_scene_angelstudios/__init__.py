@@ -27,7 +27,6 @@ from bpy_extras.io_utils import (
         ExportHelper,
         )
         
-from . import bl_preferences as bl_preferences
 from . import import_tex as import_tex
 from . import import_modscene as import_modscene
 from . import export_modscene as export_modscene
@@ -473,7 +472,6 @@ def menu_func_import(self, context):
 
 # Register factories
 def register():
-    bl_preferences.register()
     bpy.utils.register_class(ExportBMS)
     bpy.utils.register_class(ExportGEO)
     bpy.utils.register_class(ImportDLP)
@@ -521,7 +519,6 @@ def unregister():
     bpy.utils.unregister_class(ImportDLP)
     bpy.utils.unregister_class(ExportGEO)
     bpy.utils.unregister_class(ExportBMS)
-    bl_preferences.unregister()
 
 if __name__ == "__main__":
     register()
