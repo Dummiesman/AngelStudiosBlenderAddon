@@ -242,12 +242,13 @@ def export_binary_bound(filepath, ob, ascii_version="1.01", apply_modifiers=True
             me = export_ob.to_mesh()
         else:
             me = ob.data.copy()
-                
+        export_material_names = get_bnd_materials(ob)
+        
         # get bmesh
         bm = bmesh.new()
         bm.from_mesh(me)
         bm.verts.index_update()
-
+        
         # header
         file.write(struct.pack('<B', 1)) # version. always 1
         file.write(struct.pack('<LLL', len(bm.verts), len(export_material_names), len(bm.faces)))
