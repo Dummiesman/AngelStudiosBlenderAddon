@@ -1,79 +1,112 @@
 import bpy
 from bpy.types import (Operator)
 
-class NamedObjectHideOperatorBase(Operator):
+generated_classes = []
+
+class LODUtilityOperatorBase(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
-    def hide_contains(self, context, str):
+    def hide_contains(self, context, name_fragment):
         scene = context.scene
         for ob in scene.objects:
             ob_name_l = ob.name.lower()
-            if str in ob_name_l:
+            if name_fragment in ob_name_l:
                 ob.hide_set(True)
 
-    def hide_suffix(self, context, suffix):
+    def show_hide_suffix(self, context, show, suffixes):
         scene = context.scene
+
+        suffix_list = suffixes
+        if isinstance(suffixes, str):
+            suffix_list = [suffixes]
+
         for ob in scene.objects:
             ob_name_l = ob.name.lower()
-            ob.hide_set(not ob_name_l.endswith(suffix))
+            if any(ob_name_l.endswith(suf) for suf in suffix_list):
+                should_swap_state = ob.hide_get() != (not show)
+                if should_swap_state:
+                    ob.hide_set(not ob.hide_get())
 
-class ShowLodOnlyHOperator(NamedObjectHideOperatorBase):
-    bl_idname = "angelstudios.show_h_lod"
-    bl_label = "Isolate H LOD"
-    
-    def execute(self, context):
-        self.hide_suffix(context, "_h")
-
+    def show_only_suffix(self, context, suffixes):
         scene = context.scene
-        for ob in scene.objects:
-            if ob.name == "H" or ob.name == "h":
-                ob.hide_set(False)
 
+        suffix_list = suffixes
+        if isinstance(suffixes, str):
+            suffix_list = [suffixes]
+
+        for ob in scene.objects:
+            ob_name_l = ob.name.lower()
+            should_hide = not any(ob_name_l.endswith(suf) for suf in suffix_list)
+            ob.hide_set(should_hide)
+
+    def show_object(self, context, show, name):
+        scene = context.scene
+
+        name_lower = name.lower()
+        for ob in scene.objects:
+            ob_name_l = ob.name.lower()
+            if ob_name_l == name_lower:
+                ob.hide_set(not show)
+            
+class LODOperatorTemplate(LODUtilityOperatorBase):
+    lod_name = ""
+    suffixes = ()
+    mode = "show"  # could be "show", "hide", "show_only"
+
+    def execute(self, context):
+        if self.mode == "show":
+            self.show_hide_suffix(context, True, self.suffixes)
+            self.show_object(context, True, self.lod_name)
+        elif self.mode == "hide":
+            self.show_hide_suffix(context, False, self.suffixes)
+            self.show_object(context, False, self.lod_name)
+        elif self.mode == "show_only":
+            self.show_only_suffix(context, self.suffixes)
+            self.show_object(context, True, self.lod_name)
         return {'FINISHED'}
     
-class ShowLodOnlyMOperator(NamedObjectHideOperatorBase):
-    bl_idname = "angelstudios.show_m_lod"
-    bl_label = "Isolate M LOD"
+def create_lod_operator(name, label, lod_name, suffixes, mode):
+    created_type = type(
+        name,
+        (LODOperatorTemplate,),
+        {
+            "bl_idname": f"angelstudios.{mode}_{lod_name.lower()}_lod",
+            "bl_label": label,
+            "lod_name": lod_name,
+            "suffixes": suffixes,
+            "mode": mode
+        }
+    )
+    return created_type
 
-    def execute(self, context):
-        self.hide_suffix(context, "_m")
+class IsolateLODMenu(bpy.types.Menu):
+    bl_label = "Isolate LOD"
+    bl_idname = "ANGELSTUDIOS_MT_lod_menu_isolate"
 
-        scene = context.scene
-        for ob in scene.objects:
-            if ob.name == "M" or ob.name == "m":
-                ob.hide_set(False)
+    def draw(self, context):
+        layout = self.layout
+        for lod_name in ("A","H","M","L","VL"):
+            layout.operator(f"angelstudios.show_only_{lod_name.lower()}_lod", text=lod_name)
 
-        return {'FINISHED'}
-    
-class ShowLodOnlyLOperator(NamedObjectHideOperatorBase):
-    bl_idname = "angelstudios.show_l_lod"
-    bl_label = "Isolate L LOD"
-    
-    def execute(self, context):
-        self.hide_suffix(context, "_l")
+class ShowLODMenu(bpy.types.Menu):
+    bl_label = "Show LOD"
+    bl_idname = "ANGELSTUDIOS_MT_lod_menu_show"
 
-        scene = context.scene
-        for ob in scene.objects:
-            if ob.name == "L" or ob.name == "l":
-                ob.hide_set(False)
+    def draw(self, context):
+        layout = self.layout
+        for lod_name in ("A","H","M","L","VL"):
+            layout.operator(f"angelstudios.show_{lod_name.lower()}_lod", text=lod_name)
 
-        return {'FINISHED'}
-    
-class ShowLodOnlyVLOperator(NamedObjectHideOperatorBase):
-    bl_idname = "angelstudios.show_vl_lod"
-    bl_label = "Isolate VL LOD"
-    
-    def execute(self, context):
-        self.hide_suffix(context, "_vl")
+class HideLODMenu(bpy.types.Menu):
+    bl_label = "Hide LOD"
+    bl_idname = "ANGELSTUDIOS_MT_lod_menu_hide"
 
-        scene = context.scene
-        for ob in scene.objects:
-            if ob.name == "VL" or ob.name == "vl":
-                ob.hide_set(False)
-
-        return {'FINISHED'}
-    
-class HideDamagedPanels(NamedObjectHideOperatorBase):
+    def draw(self, context):
+        layout = self.layout
+        for lod_name in ("A","H","M","L","VL"):
+            layout.operator(f"angelstudios.hide_{lod_name.lower()}_lod", text=lod_name)
+            
+class HideDamagedPanels(LODUtilityOperatorBase):
     bl_idname = "angelstudios.hide_dmg_panels"
     bl_label = "Hide Damaged Panels"
     
@@ -81,28 +114,39 @@ class HideDamagedPanels(NamedObjectHideOperatorBase):
         self.hide_contains(context, "_dmg_")
         return {'FINISHED'}
     
-class HideUndamagedPanels(NamedObjectHideOperatorBase):
+class HideUndamagedPanels(LODUtilityOperatorBase):
     bl_idname = "angelstudios.hide_udmg_panels"
     bl_label = "Hide Undamaged Panels"
     
     def execute(self, context):
         self.hide_contains(context, "_udmg_")
         return {'FINISHED'}
-    
+
+def generate_classes():
+    for lod_name in ("A", "H", "M", "L", "VL"):
+        suffixes = (f"_{lod_name.lower()}", f"_{lod_name.lower()}2")
+        show_type = create_lod_operator(f"ShowLod{lod_name}Operator", lod_name, lod_name, suffixes, "show")
+        hide_type = create_lod_operator(f"HideLod{lod_name}Operator", lod_name, lod_name, suffixes, "hide")
+        show_only_type = create_lod_operator(f"ShowLodOnly{lod_name}Operator", lod_name, lod_name, suffixes, "show_only")
+        generated_classes.extend((show_type, hide_type, show_only_type))
+   
 def register():
-    bpy.utils.register_class(ShowLodOnlyHOperator)
-    bpy.utils.register_class(ShowLodOnlyMOperator)
-    bpy.utils.register_class(ShowLodOnlyLOperator)
-    bpy.utils.register_class(ShowLodOnlyVLOperator)
+    generate_classes()
+    for generated_class in generated_classes:
+        bpy.utils.register_class(generated_class)
+    bpy.utils.register_class(IsolateLODMenu)
+    bpy.utils.register_class(ShowLODMenu)
+    bpy.utils.register_class(HideLODMenu)
     bpy.utils.register_class(HideDamagedPanels)
     bpy.utils.register_class(HideUndamagedPanels)
 
 def unregister():
+    bpy.utils.register_class(HideLODMenu)
+    bpy.utils.register_class(ShowLODMenu)
+    bpy.utils.register_class(IsolateLODMenu)
     bpy.utils.unregister_class(HideUndamagedPanels)
     bpy.utils.unregister_class(HideDamagedPanels)
-    bpy.utils.unregister_class(ShowLodOnlyVLOperator)
-    bpy.utils.unregister_class(ShowLodOnlyLOperator)
-    bpy.utils.unregister_class(ShowLodOnlyMOperator)
-    bpy.utils.unregister_class(ShowLodOnlyHOperator)
+    for generated_class in reversed(generated_classes):
+        bpy.utils.unregister_class(generated_class)
     
     

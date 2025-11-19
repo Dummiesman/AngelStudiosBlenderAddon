@@ -384,6 +384,7 @@ class ExportMOD(bpy.types.Operator, ExportHelper):
                                             "axis_up",
                                             "filter_glob",
                                             "check_existing",
+                                            "export_extension"
                                             ))
                                     
         return export_mod.save(self, context, **keywords)
@@ -429,14 +430,16 @@ class AngelStudiosMenu(bpy.types.Menu):
 
         layout.operator("angelstudios.import_mod_scene")
         layout.operator("angelstudios.export_mod_scene")
+
+        layout.separator()
+        
         layout.operator("angelstudios.import_tex")
 
         layout.separator()
         
-        layout.operator("angelstudios.show_h_lod")
-        layout.operator("angelstudios.show_m_lod")
-        layout.operator("angelstudios.show_l_lod")
-        layout.operator("angelstudios.show_vl_lod")
+        layout.menu(util_ops.IsolateLODMenu.bl_idname)
+        layout.menu(util_ops.ShowLODMenu.bl_idname)
+        layout.menu(util_ops.HideLODMenu.bl_idname)
 
         layout.separator()
 
