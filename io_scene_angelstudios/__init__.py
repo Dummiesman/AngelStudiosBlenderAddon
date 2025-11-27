@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Angel Studios Formats (ARTS/AGE)",
     "author": "Dummiesman",
-    "version": (0, 0, 7),
+    "version": (0, 0, 8),
     "blender": (3, 1, 0),
     "location": "File > Import-Export",
     "description": "Import-Export ARTS/AGE model and animation files",
