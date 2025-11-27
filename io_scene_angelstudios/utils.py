@@ -240,6 +240,10 @@ def try_load_dds_texture(tex_name, search_paths):
         bl_img = _image_load_placeholder(tex_name, os.path.join(search_path, tex_name))
     return bl_img
    
+def fix_nan(values, default=0.0):
+    return tuple(default if (isinstance(v, float) and math.isnan(v)) else v
+                 for v in values)
+
 def translate_uv(uv):
     """ translate uv coordinate from/to blender<->AGE """
     return (uv[0], 1 - uv[1])

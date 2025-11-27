@@ -153,7 +153,7 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
     loops_to_polygons = {}
     material_loops = [[] for x in range(material_count)]
     
-    print("gather bones...")
+    # print("gather bones...")
     bone_count = len(am.bones) if am is not None else 1
     bones = [None for x in range(bone_count)]
     bone_name_to_index = {}
@@ -163,19 +163,19 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
         for bone in am.bones:
             bone_names.add(bone.name)
         if len([bone for bone in am.bones if 'bone_id' in bone]) == bone_count:
-            print("    ordering bones by their bone_id defined order")
+            # print("    ordering bones by their bone_id defined order")
             # use bone_id field to assign bones list
             for bone in am.bones:
                 bone_name_to_index[bone.name] = bone['bone_id']
                 bones[bone['bone_id']] = bone
         else:
-            print("    ordering bones by their armature order")
+            # print("    ordering bones by their armature order")
             # use bone index to assign bones list
             for bone_index, bone in enumerate(am.bones):
                 bone_name_to_index[bone.name] = bone_index
                 bones[bone_index] = bone
                 
-    print("map loops...")
+    # print("map loops...")
     for polygon in me.polygons:
         for loop_index in polygon.loop_indices:
             loops_to_polygons[loop_index] = polygon.index
@@ -186,11 +186,15 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
             material_loops[polygon.material_index].append(loop_index)
         
             uv = (0, 0) if uv_layer is None else utils.translate_uv(uv_layer[loop_index].uv)
+            uv = utils.fix_nan(uv)
+
             if not uv in uv_remap:
                 uv_remap[uv] = len(export_uvs)
                 export_uvs.append(uv)
             
-            color = (1, 1, 1, 1) if vc_layer is None else tuple(vc_layer.data[loop_index].color)     
+            color = (1, 1, 1, 1) if vc_layer is None else tuple(vc_layer.data[loop_index].color)  
+            color = utils.fix_nan(color)
+
             if not color in color_remap:
                 color_remap[color] = len(export_colors)
                 export_colors.append(color)
@@ -247,7 +251,7 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
 
     # localize vertices if we have an armature
     if am is not None:
-        print("localize vertices...")
+        # print("localize vertices...")
         localize_offset = 0
         for bone_index, vcount in enumerate(mtxv):
             bone_pos = utils.translate_vector(get_bone_pos(bones[bone_index]))
@@ -259,7 +263,7 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
             localize_offset += vcount
         
     # make packets    
-    print("make packets...")
+    # print("make packets...")
     
     max_packet_indices = 255
     max_packet_matrices = 8
@@ -298,8 +302,11 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
                 normal_index = normal_remap[utils.round_vector(utils.translate_vector(me.vertices[loop.vertex_index].normal), 6)]
                 
                 uv = (0, 0) if uv_layer is None else utils.translate_uv(uv_layer[loop_index].uv)
+                uv = utils.fix_nan(uv)
+
                 color = (1, 1, 1, 1) if vc_layer is None else tuple(vc_layer.data[loop_index].color)     
-                
+                color = utils.fix_nan(color)
+
                 uv_index = uv_remap[uv]
                 uv2_index = 0
                 color_index = color_remap[color]
@@ -426,8 +433,8 @@ def export_mod(filepath, ob, version, apply_modifiers=True):
         file.write("mtxv " + " ".join([str(x) for x in mtxv]) + "\n")
         file.write("mtxn " + " ".join([str(x) for x in mtxn]))
 
-    # heccin done
-    print("done")
+    # we are done
+    # print("done")
     
 ######################################################
 # EXPORT

@@ -104,6 +104,7 @@ class ExportMODSceneOperator(bpy.types.Operator):
 
             # export mod/xmod
             for ob in obs:
+                print(f"Exporting object: {ob.name}")
                 filepath = os.path.join(self.directory, f"{scene_prefix}{ob.name}.{self.export_extension}")
                 export_mod.export_mod_object(filepath, ob, self.mod_version, self.apply_modifiers)
             
