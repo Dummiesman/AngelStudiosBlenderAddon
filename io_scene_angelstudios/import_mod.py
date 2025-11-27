@@ -219,7 +219,7 @@ def import_mod_object_ascii(filepath):
             mat_wrap.roughness = (1.0 - shininess)
             
             if len(mat_textures) > 0:
-                texture_name = mat_textures[0]
+                texture_name = mat_textures[0].lower()
                 asset_root_path = os.path.abspath(os.path.join(os.path.dirname(filepath), ".."))
                 asset_base_path = os.path.abspath(os.path.dirname(filepath))
                 texture = utils.try_load_texture(texture_name, (os.path.join(asset_root_path, "texture_x"), os.path.join(asset_root_path, "texture"), asset_base_path))
@@ -512,7 +512,7 @@ def import_mod_object_bin(filepath):
             mat_wrap.roughness = (1.0 - shininess)
             
             if len(mat_textures) > 0:
-                texture_name = mat_textures[0]
+                texture_name = mat_textures[0].lower()
                 asset_root_path = os.path.abspath(os.path.join(os.path.dirname(filepath), ".."))
                 asset_base_path = os.path.abspath(os.path.dirname(filepath))
                 texture = utils.try_load_texture(texture_name, (os.path.join(asset_root_path, "texture_x"), os.path.join(asset_root_path, "texture"), asset_base_path))
