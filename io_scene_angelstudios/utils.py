@@ -189,7 +189,7 @@ def _image_load_placeholder(name, path):
     image.filepath_raw = path
     return image
         
-def try_load_texture(tex_name, search_paths):
+def try_load_texture(search_paths, tex_name, extensions):
     existing_image = bpy.data.images.get(tex_name)
     if existing_image is not None:
         return existing_image
@@ -197,42 +197,19 @@ def try_load_texture(tex_name, search_paths):
     bl_img = None
     for search_path in search_paths:
         if os.path.isdir(search_path):
-            check_file = os.path.join(search_path, tex_name + ".tex")
-            if os.path.exists(check_file):
-                bl_img = _load_texture_from_path(check_file)
-
-            if bl_img is None:
-                check_file = os.path.join(search_path, tex_name + ".xtex")
-                if os.path.exists(check_file):
-                    bl_img = _load_texture_from_path(check_file)
-
-            if bl_img is None:
-                standard_extensions = (".tga", ".bmp", ".png")
-                for ext in standard_extensions:
-                    check_file = os.path.join(search_path, tex_name + ext)
-                    if os.path.exists(check_file):
-                        bl_img = _load_texture_from_path(check_file)
-                        if bl_img is not None:
+            entries = os.listdir(search_path)
+            for ext in extensions:
+                for entry in entries:
+                    entry_path = os.path.join(search_path, entry)
+                    if os.path.isfile(entry_path):
+                        check_file = tex_name + ext
+                        if check_file.lower() in entry.lower():
+                            bl_img = _load_texture_from_path(entry_path)
                             break
 
-            if bl_img is not None:
-                break
+                if bl_img is not None:
+                    break
 
-    if bl_img is None:
-        bl_img = _image_load_placeholder(tex_name, os.path.join(search_path, tex_name))
-    return bl_img
-
-def try_load_dds_texture(tex_name, search_paths):
-    existing_image = bpy.data.images.get(tex_name)
-    if existing_image is not None:
-        return existing_image
-    
-    bl_img = None
-    for search_path in search_paths:
-        if os.path.isdir(search_path):
-            check_file = os.path.join(search_path, tex_name + ".dds")
-            if os.path.exists(check_file):
-                bl_img = _load_texture_from_path(check_file)
             if bl_img is not None:
                 break
 

@@ -80,7 +80,7 @@ def add_vertex_groups(ob, bone_map):
 ######################################################
 # IMPORT MAIN FILES
 ######################################################
-def import_mod_object_ascii(filepath):
+def import_mod_object_ascii(filepath, texture_basepath):
     with open(filepath, 'r') as file:   
         scn = bpy.context.scene
         # add a mesh and link it to the scene
@@ -219,10 +219,11 @@ def import_mod_object_ascii(filepath):
             mat_wrap.roughness = (1.0 - shininess)
             
             if len(mat_textures) > 0:
-                texture_name = mat_textures[0].lower()
-                asset_root_path = os.path.abspath(os.path.join(os.path.dirname(filepath), ".."))
+                texture_name = mat_textures[0]
                 asset_base_path = os.path.abspath(os.path.dirname(filepath))
-                texture = utils.try_load_texture(texture_name, (os.path.join(asset_root_path, "texture_x"), os.path.join(asset_root_path, "texture"), asset_base_path))
+                try_paths = (texture_basepath, asset_base_path)
+                try_extensions = (".tex", ".xtex", ".tga", ".bmp", ".png")
+                texture = utils.try_load_texture(try_paths, texture_name, try_extensions)
                 mat_wrap.base_color_texture.image = texture
             
             ob.data.materials.append(mod_material.material)
@@ -355,7 +356,7 @@ def import_mod_object_ascii(filepath):
         # return the added object
         return ob
 
-def import_mod_object_bin(filepath):
+def import_mod_object_bin(filepath, texture_basepath):
     with open(filepath, 'rb') as file:
         scn = bpy.context.scene
         # add a mesh and link it to the scene
@@ -515,7 +516,9 @@ def import_mod_object_bin(filepath):
                 texture_name = mat_textures[0]
                 asset_root_path = os.path.abspath(os.path.join(os.path.dirname(filepath), ".."))
                 asset_base_path = os.path.abspath(os.path.dirname(filepath))
-                texture = utils.try_load_texture(texture_name, (os.path.join(asset_root_path, "texture_x"), os.path.join(asset_root_path, "texture"), asset_base_path))
+                try_paths = (texture_basepath, asset_base_path)
+                try_extensions = (".tex", ".xtex", ".tga", ".bmp", ".png")
+                texture = utils.try_load_texture(try_paths, texture_name, try_extensions)
                 mat_wrap.base_color_texture.image = texture
             
             ob.data.materials.append(mod_material.material)
@@ -587,14 +590,14 @@ def import_mod_object_bin(filepath):
 
         return ob
 
-def import_mod_object(filepath):
+def import_mod_object(filepath, texture_basepath):
     with open(filepath, 'rb') as file:
         # determine version and read accordingly
         version = file.read(13)
         if version == b"version: 1.06" or version == b"version: 1.09" or version == b"version: 1.10":
-            return import_mod_object_ascii(filepath)
+            return import_mod_object_ascii(filepath, texture_basepath)
         elif version == b"version: 2.00" or version == b"version: 2.10" or version == b"version: 2.12":
-            return import_mod_object_bin(filepath)
+            return import_mod_object_bin(filepath, texture_basepath)
         else:
             raise Exception("BAD MOD VERSION: " + str(version))
     
@@ -605,11 +608,12 @@ def import_mod_object(filepath):
 def load(operator,
          context,
          filepath="",
+         texture_basepath="",
          ):
 
     print("importing MOD: %r..." % (filepath))
     time1 = time.perf_counter()
-    import_mod_object(filepath)
+    import_mod_object(filepath, texture_basepath)
     print(" done in %.4f sec." % (time.perf_counter() - time1))
     
     return {'FINISHED'}

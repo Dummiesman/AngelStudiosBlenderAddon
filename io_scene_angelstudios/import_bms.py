@@ -26,7 +26,7 @@ def vert_key(position, normal=None):
 ######################################################
 # IMPORT
 ######################################################
-def import_bms_object(filepath):
+def import_bms_object(filepath, texture_basepath):
     scn = bpy.context.scene
 
     points = []
@@ -112,7 +112,9 @@ def import_bms_object(filepath):
             if os.path.basename(asset_root_path).upper() == "BMS": # one more, we're in a BMS dir
                 asset_root_path = os.path.abspath(os.path.join(os.path.dirname(filepath), "..", ".."))
             asset_base_path = os.path.abspath(os.path.dirname(filepath))
-            texture = utils.try_load_dds_texture(texture_name, (os.path.join(asset_root_path, "TEX16O"), os.path.join(asset_root_path, "TEX16A"), asset_base_path))
+            try_paths = (os.path.join(asset_root_path, "TEX16O"), os.path.join(asset_root_path, "TEX16A"), asset_base_path)
+            try_extensions = (".dds")
+            texture = utils.try_load_texture(try_paths, texture_name, try_extensions)
 
             mat = create_material(texture_name)
             mat_wrap = node_shader_utils.PrincipledBSDFWrapper(mat, is_readonly=False) 
