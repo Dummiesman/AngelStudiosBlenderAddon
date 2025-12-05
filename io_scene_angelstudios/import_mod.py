@@ -592,6 +592,9 @@ def import_mod_object_bin(filepath, texture_basepath):
 
 def import_mod_object(filepath, texture_basepath):
     with open(filepath, 'rb') as file:
+        if not texture_basepath:
+            texture_basepath = os.path.join(os.path.abspath(os.path.join(os.path.dirname(filepath), "..")), "texture")
+
         # determine version and read accordingly
         version = file.read(13)
         if version == b"version: 1.06" or version == b"version: 1.09" or version == b"version: 1.10":
