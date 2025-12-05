@@ -34,25 +34,28 @@ class ImportMODSceneOperator(bpy.types.Operator):
             # import models
             scene_prefix = f"{self.scene_name}_"
 
-            matrix_basepath = os.path.join(os.path.abspath(os.path.join(self.directory, "..")), "geometry") # Dis-gusting. Temporary.
+            matrix_basepath = os.path.join(os.path.abspath(os.path.join(self.directory, "..")), "geometry")
 
-            assets_basepath = self.directory
+            search_path = self.directory
             for _ in range(4):
-                assets_basepath = os.path.dirname(assets_basepath)
-                geometry_path = os.path.join(assets_basepath, "geometry")
+                search_path = os.path.dirname(search_path)
+                geometry_path = os.path.join(search_path, "geometry")
                 if os.path.exists(geometry_path):
                     matrix_basepath = geometry_path
                     break
 
             texture_basepath = os.path.join(os.path.abspath(os.path.join(self.directory, "..")), "texture_x")
-            assets_basepath = self.directory
+
+            search_path = self.directory
             for _ in range(4):
-                for name in ("texture", "texture_x"):
-                    assets_basepath = os.path.dirname(assets_basepath)
-                    texture_path = os.path.join(assets_basepath, name)
-                    if os.path.exists(texture_path):
-                        texture_basepath = texture_path
+                search_path = os.path.dirname(search_path)
+                for entry in os.listdir(search_path):
+                    entry_path = os.path.join(search_path, entry)
+                    if os.path.isdir(entry_path) and entry.lower().startswith("texture"):
+                        texture_basepath = entry_path
                         break
+
+            print("Textures path: " + texture_basepath)
 
             for file in os.listdir(self.directory):
                 file_l = file.lower()

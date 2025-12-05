@@ -593,7 +593,17 @@ def import_mod_object_bin(filepath, texture_basepath):
 def import_mod_object(filepath, texture_basepath):
     with open(filepath, 'rb') as file:
         if not texture_basepath:
-            texture_basepath = os.path.join(os.path.abspath(os.path.join(os.path.dirname(filepath), "..")), "texture")
+            search_path = os.path.dirname(filepath)
+            texture_basepath = os.path.join(os.path.abspath(os.path.join(search_path, "..")), "texture_x")
+            for _ in range(4):
+                search_path = os.path.dirname(search_path)
+                for entry in os.listdir(search_path):
+                    entry_path = os.path.join(search_path, entry)
+                    if os.path.isdir(entry_path) and entry.lower().startswith("texture"):
+                        texture_basepath = entry_path
+                        break
+
+            print("Textures path: " + texture_basepath)
 
         # determine version and read accordingly
         version = file.read(13)
