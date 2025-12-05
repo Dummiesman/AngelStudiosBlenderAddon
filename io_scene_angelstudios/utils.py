@@ -204,6 +204,7 @@ def try_load_texture(search_paths, tex_name, extensions):
                     if os.path.isfile(entry_path):
                         check_file = tex_name + ext
                         if check_file.lower() in entry.lower():
+                            print("Texture: " + entry)
                             bl_img = _load_texture_from_path(entry_path)
                             break
 
@@ -214,6 +215,7 @@ def try_load_texture(search_paths, tex_name, extensions):
                 break
 
     if bl_img is None:
+        print("Texture " + tex_name + " is missing!")
         bl_img = _image_load_placeholder(tex_name, os.path.join(search_path, tex_name))
     return bl_img
    
