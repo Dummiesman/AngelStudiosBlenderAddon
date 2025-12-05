@@ -26,7 +26,7 @@ def vert_key(position, normal=None):
 ######################################################
 # IMPORT
 ######################################################
-def import_bms_object(filepath, texture_basepath):
+def import_bms_object(filepath):
     scn = bpy.context.scene
 
     points = []
@@ -113,7 +113,7 @@ def import_bms_object(filepath, texture_basepath):
                 asset_root_path = os.path.abspath(os.path.join(os.path.dirname(filepath), "..", ".."))
             asset_base_path = os.path.abspath(os.path.dirname(filepath))
             try_paths = (os.path.join(asset_root_path, "TEX16O"), os.path.join(asset_root_path, "TEX16A"), asset_base_path)
-            try_extensions = (".dds")
+            try_extensions = (".dds", ".bmp", ".png")
             texture = utils.try_load_texture(try_paths, texture_name, try_extensions)
 
             mat = create_material(texture_name)
