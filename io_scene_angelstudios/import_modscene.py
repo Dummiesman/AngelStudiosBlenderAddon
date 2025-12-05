@@ -34,7 +34,8 @@ class ImportMODSceneOperator(bpy.types.Operator):
             # import models
             scene_prefix = f"{self.scene_name}_"
 
-            matrix_basepath = self.directory
+            matrix_basepath = os.path.join(os.path.abspath(os.path.join(self.directory, "..")), "geometry")
+
             search_path = self.directory
             for _ in range(4):
                 search_path = os.path.dirname(search_path)
@@ -43,7 +44,8 @@ class ImportMODSceneOperator(bpy.types.Operator):
                     matrix_basepath = geometry_path
                     break
 
-            textures_basepath = self.directory
+            textures_basepath = os.path.join(os.path.abspath(os.path.join(self.directory, "..")), "texture_x")
+
             search_path = self.directory
             for _ in range(4):
                 search_path = os.path.dirname(search_path)
@@ -52,8 +54,6 @@ class ImportMODSceneOperator(bpy.types.Operator):
                     if os.path.isdir(entry_path) and entry.lower().startswith("texture"):
                         textures_basepath = entry_path
                         break
-                if textures_basepath:
-                    break
 
             print("Textures path: " + textures_basepath)
 
