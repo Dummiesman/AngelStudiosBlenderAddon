@@ -80,7 +80,7 @@ def add_vertex_groups(ob, bone_map):
 ######################################################
 # IMPORT MAIN FILES
 ######################################################
-def import_mod_object_ascii(filepath, texture_basepath):
+def import_mod_object_ascii(filepath, textures_basepath):
     with open(filepath, 'r') as file:   
         scn = bpy.context.scene
         # add a mesh and link it to the scene
@@ -221,7 +221,7 @@ def import_mod_object_ascii(filepath, texture_basepath):
             if len(mat_textures) > 0:
                 texture_name = mat_textures[0]
                 asset_base_path = os.path.abspath(os.path.dirname(filepath))
-                try_paths = (texture_basepath, asset_base_path)
+                try_paths = (textures_basepath, asset_base_path)
                 try_extensions = (".tex", ".xtex", ".tga", ".bmp", ".png")
                 texture = utils.try_load_texture(try_paths, texture_name, try_extensions)
                 mat_wrap.base_color_texture.image = texture
@@ -356,7 +356,7 @@ def import_mod_object_ascii(filepath, texture_basepath):
         # return the added object
         return ob
 
-def import_mod_object_bin(filepath, texture_basepath):
+def import_mod_object_bin(filepath, textures_basepath):
     with open(filepath, 'rb') as file:
         scn = bpy.context.scene
         # add a mesh and link it to the scene
@@ -516,7 +516,7 @@ def import_mod_object_bin(filepath, texture_basepath):
                 texture_name = mat_textures[0]
                 asset_root_path = os.path.abspath(os.path.join(os.path.dirname(filepath), ".."))
                 asset_base_path = os.path.abspath(os.path.dirname(filepath))
-                try_paths = (texture_basepath, asset_base_path)
+                try_paths = (textures_basepath, asset_base_path)
                 try_extensions = (".tex", ".xtex", ".tga", ".bmp", ".png")
                 texture = utils.try_load_texture(try_paths, texture_name, try_extensions)
                 mat_wrap.base_color_texture.image = texture
@@ -590,27 +590,28 @@ def import_mod_object_bin(filepath, texture_basepath):
 
         return ob
 
-def import_mod_object(filepath, texture_basepath):
+def import_mod_object(filepath, textures_basepath):
     with open(filepath, 'rb') as file:
-        if not texture_basepath:
+        if not textures_basepath:
             search_path = os.path.dirname(filepath)
-            texture_basepath = os.path.join(os.path.abspath(os.path.join(search_path, "..")), "texture_x")
             for _ in range(4):
                 search_path = os.path.dirname(search_path)
                 for entry in os.listdir(search_path):
                     entry_path = os.path.join(search_path, entry)
                     if os.path.isdir(entry_path) and entry.lower().startswith("texture"):
-                        texture_basepath = entry_path
+                        textures_basepath = entry_path
                         break
+                if textures_basepath:
+                    break
 
-            print("Textures path: " + texture_basepath)
+            print("Textures path: " + textures_basepath)
 
         # determine version and read accordingly
         version = file.read(13)
         if version == b"version: 1.06" or version == b"version: 1.09" or version == b"version: 1.10":
-            return import_mod_object_ascii(filepath, texture_basepath)
+            return import_mod_object_ascii(filepath, textures_basepath)
         elif version == b"version: 2.00" or version == b"version: 2.10" or version == b"version: 2.12":
-            return import_mod_object_bin(filepath, texture_basepath)
+            return import_mod_object_bin(filepath, textures_basepath)
         else:
             raise Exception("BAD MOD VERSION: " + str(version))
     
@@ -621,12 +622,12 @@ def import_mod_object(filepath, texture_basepath):
 def load(operator,
          context,
          filepath="",
-         texture_basepath="",
+         textures_basepath="",
          ):
 
     print("importing MOD: %r..." % (filepath))
     time1 = time.perf_counter()
-    import_mod_object(filepath, texture_basepath)
+    import_mod_object(filepath, textures_basepath)
     print(" done in %.4f sec." % (time.perf_counter() - time1))
     
     return {'FINISHED'}
