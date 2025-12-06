@@ -33,13 +33,34 @@ class ImportMODSceneOperator(bpy.types.Operator):
             
             # import models
             scene_prefix = f"{self.scene_name}_"
-            matrix_basepath = os.path.join(os.path.abspath(os.path.join(self.directory, "..")), "geometry") # Dis-gusting. Temporary.
+
+            matrix_basepath = self.directory
+            search_path = self.directory
+            for _ in range(4):
+                search_path = os.path.dirname(search_path)
+                geometry_path = os.path.join(search_path, "geometry")
+                if os.path.exists(geometry_path):
+                    matrix_basepath = geometry_path
+                    break
+
+            textures_basepath = self.directory
+            search_path = self.directory
+            for _ in range(4):
+                search_path = os.path.dirname(search_path)
+                for entry in os.listdir(search_path):
+                    entry_path = os.path.join(search_path, entry)
+                    if os.path.isdir(entry_path) and entry.lower().startswith("texture"):
+                        textures_basepath = entry_path
+                        break
+
+            print("Textures path: " + textures_basepath)
+
             for file in os.listdir(self.directory):
                 file_l = file.lower()
                 if file_l.startswith(scene_prefix) and (file_l.endswith(".mod") or file_l.endswith(".xmod")):
                     print("IMPORTING " + file_l)
                     file_noext = os.path.splitext(file)[0]
-                    imported_ob = import_mod.import_mod_object(filepath=os.path.join(self.directory, file))
+                    imported_ob = import_mod.import_mod_object(filepath=os.path.join(self.directory, file), textures_basepath = textures_basepath)
                     imported_ob.name = file_noext[len(scene_prefix):]
                     imported_ob_basename = utils.object_basename(file_noext)
                     if os.path.exists(os.path.join(matrix_basepath, f"{imported_ob_basename}.mtx")):
