@@ -81,7 +81,7 @@ class ImportBND(bpy.types.Operator, ImportHelper):
     bl_options = {'UNDO'}
 
     filename_ext = ".bnd"
-    filter_glob: StringProperty(default="*.bnd", options={'HIDDEN'})
+    filter_glob: StringProperty(default="*.bnd;*.bbnd", options={'HIDDEN'})
 
     def execute(self, context):
         from . import import_bnd
@@ -92,48 +92,6 @@ class ImportBND(bpy.types.Operator, ImportHelper):
                                             ))
 
         return import_bnd.load(self, context, **keywords)
-
-
-class ImportBBND(bpy.types.Operator, ImportHelper):
-    """Import from BBND file format (.bbnd)"""
-    bl_idname = "import_scene.bbnd"
-    bl_label = 'Import Binary Bound'
-    bl_options = {'UNDO'}
-
-    filename_ext = ".bbnd"
-    filter_glob: StringProperty(default="*.bbnd", options={'HIDDEN'})
-
-    bound_repair_debug: BoolProperty(
-        name="Make Empty At First Vertex",
-        description="Places an empty object at the first vertex, in order to help repair broken bounds.",
-        default=False,
-        )
-        
-    def draw(self, context):
-        layout = self.layout
-        
-        wrapp = textwrap.TextWrapper(width=42)
-        wList = wrapp.wrap(text=("In the previous versions of this addon, BBND files were exported in a way which could cause quads connected to the first vertex to turn into triangles instead. "
-                                 "Use this option to place an empty object at the first vertex, so you can easily locate and fix this issue if it occurred.")) 
-        for text in wList: 
-            row = layout.row(align = True)
-            row.alignment = 'EXPAND'
-            row.label(text=text)
-            
-        sub = layout.row()
-        sub.prop(self, "bound_repair_debug")
-
-        
-    def execute(self, context):
-        from . import import_bbnd
-        keywords = self.as_keywords(ignore=("axis_forward",
-                                            "axis_up",
-                                            "filter_glob",
-                                            "check_existing",
-                                            ))
-
-        return import_bbnd.load(self, context, **keywords)
-
 
 class ExportBND(bpy.types.Operator, ExportHelper):
     """Export to BND file format (.BND)"""
@@ -353,10 +311,7 @@ class ExportMOD(bpy.types.Operator, ExportHelper):
     bl_label = 'Export MOD'
 
     filename_ext = ".mod"
-    filter_glob: StringProperty(
-            default="*.mod;*.xmod",
-            options={'HIDDEN'},
-            )
+    filter_glob: StringProperty(default="*.mod;*.xmod", options={'HIDDEN'})
             
     mod_version : EnumProperty(items = [('1.09','1.09','','',109), 
                                         ('1.10','1.10','','',110)],
@@ -453,8 +408,8 @@ class AngelStudiosMenu(bpy.types.Menu):
 def menu_func_export(self, context):
     self.layout.separator()
     self.layout.label(text="Angel Studios Formats")
-    self.layout.operator(ExportBND.bl_idname, text="Bound (.bnd)")
-    self.layout.operator(ExportMOD.bl_idname, text="Model (.mod)")
+    self.layout.operator(ExportBND.bl_idname, text="Bound (.bnd/.bbnd)")
+    self.layout.operator(ExportMOD.bl_idname, text="Model (.mod/.xmod)")
     self.layout.operator(ExportSKEL.bl_idname, text="Skeleton (.skel)")
     self.layout.operator(ExportBMS.bl_idname, text="ARTS Mesh Set (.bms)")
     self.layout.operator(ExportGEO.bl_idname, text="ARTS Scene (.geo)")
@@ -465,8 +420,9 @@ def menu_func_import(self, context):
     self.layout.label(text="Angel Studios Formats")
     self.layout.operator(ImportBMS.bl_idname, text="ARTS Mesh Set (*.bms)")
     self.layout.operator(ImportDLP.bl_idname, text="ARTS DLP Template (*.dlp)")
-    self.layout.operator(ImportBND.bl_idname, text="Bound (.bnd)")
-    self.layout.operator(ImportMOD.bl_idname, text="Model (.mod)")
+    self.layout.operator(ImportBND.bl_idname, text="Bound (.bnd/.bbnd)")
+    self.layout.operator(ImportEM.bl_idname, text="Edge Model (.em)")
+    self.layout.operator(ImportMOD.bl_idname, text="Model (.mod/.xmod)")
     self.layout.operator(ImportSKEL.bl_idname, text="Skeleton (.skel)")
     # self.layout.operator(ImportANIM.bl_idname, text="Animation (.anim)")
     self.layout.separator()
