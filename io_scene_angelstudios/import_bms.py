@@ -17,6 +17,26 @@ def create_material(name):
 
   return mtl
 
+def create_vertex_color_material(name, vc_layer_name):
+    mtl = bpy.data.materials.new(name=name)
+    mtl.specular_intensity = 0
+    mtl.use_nodes = True
+    mtl.use_backface_culling = True
+
+    nodes = mtl.node_tree.nodes
+    links = mtl.node_tree.links
+
+    principled = nodes.get("Principled BSDF")
+
+    attr_node = nodes.new(type='ShaderNodeAttribute')
+    attr_node.attribute_name = vc_layer_name
+    attr_node.attribute_type = 'GEOMETRY'
+    attr_node.location = (principled.location.x - 300, principled.location.y)
+
+    links.new(attr_node.outputs['Color'], principled.inputs['Base Color'])
+
+    return mtl
+
 def vert_key(position, normal=None):
     if normal is not None:
         return str(position) + "|" + str(normal)
@@ -36,6 +56,9 @@ def import_bms_object(filepath):
     colors = []
     vertex_indices = []
     texture_indices = []
+
+    have_color_only_material = False
+    color_only_material_index = -1
 
     # read data
     with open(filepath, 'rb') as file:
@@ -154,7 +177,17 @@ def import_bms_object(filepath):
                     if flags & 4 != 0:
                         face.loops[xx][vc_layer] = colors[indices[xx]]
 
-                face.material_index = (texture_indices[x] - 1)
+                if texture_indices[x] == 0:
+                    # color only, create material if missing
+                    if not have_color_only_material:
+                        color_only_material_index = len(ob.data.materials)
+                        mat = create_vertex_color_material("VertexColored", vc_layer.name)
+                        ob.data.materials.append(mat)
+                        have_color_only_material = True
+                    face.material_index = color_only_material_index
+                else:
+                    face.material_index = (texture_indices[x] - 1)
+
                 face.smooth = True
             except Exception as e:
                 print(str(e))
